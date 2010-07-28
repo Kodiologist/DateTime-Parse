@@ -5,7 +5,16 @@ use DateTime::Parse;
 plan *;
 
 sub d ($y, $m, $d) { Date.new($y, $m, $d) }
+
 sub p ($s, *%_) { ~ parse-date($s, |%_) }
+
+my $today = d(1997, 7, 3); # A Wednesday.
+
+sub t ($s, *%_) { ~ parse-date($s, :$today, |%_) }
+
+# ------------------------------------------------------------
+# Year, month, and day
+# ------------------------------------------------------------
 
 is p('1994 12 6'),        '1994-12-06', 'yyyy mm dd';
 is p('1994  12   6'),     '1994-12-06', 'yyyy mm dd (with spaces)';
@@ -13,9 +22,6 @@ is p('1994  12  06'),     '1994-12-06', 'yyyy mm dd (with spaces and leading 0)'
 is p('06  12 1994'),      '1994-12-06', 'dd mm yyyy';
 is p('06/12/1994'),       '1994-12-06', 'dd/mm/yyyy';
 is p('19941206'),         '1994-12-06', 'yyyymmdd';
-
-my $today = d(1997, 7, 7);
-sub t ($s, *%_) { ~ parse-date($s, :$today, |%_) }
 
 is t('6 12 94'),       '1994-12-06', 'dd mm yy';
 is p('6 12 94', today => d(1942, 7, 7)), '1894-12-06', 'dd mm yy (different :today, 1)';
@@ -44,11 +50,61 @@ is t('6 December 94'), '1994-12-06', 'dd Monthname yy';
 is t('Dec 6 94'),      '1994-12-06', 'Mon dd yy';
 
 # Ignore the day of week when the month and day are given.
+# (6 December 1994 was a Tuesday.)
 
 is p('1994 12 6 Fr'),        '1994-12-06', 'yyyy mm dd Dow';
 is p('1994 12 6 Friday'),    '1994-12-06', 'yyyy mm dd Dayofweek';
 is p('Fr 1994 12 6'),        '1994-12-06', 'Dow yyyy mm dd';
 is p('Friday, 1994 12 6'),   '1994-12-06', 'Dayofweek, yyyy mm dd';
 is t('Fr, 6 December 94'),   '1994-12-06', 'Dow, dd Monthname yy';
+
+# ------------------------------------------------------------
+# Month and day
+# ------------------------------------------------------------
+
+is t('6 Dec'),               '1997-12-06', 'dd Mon';
+is t('6 December'),          '1997-12-06', 'dd Monthname';
+is t('Dec 6'),               '1997-12-06', 'Mon dd';
+is t('December 6'),          '1997-12-06', 'Monthname dd (after today)';
+is t('December 6', :future), '1997-12-06', 'Monthname dd (unnecessary :future)';
+is t('December 6', :past),   '1996-12-06', 'Monthname dd (:past)';
+is t('March 6'),             '1997-03-06', 'Monthname dd (before today)';
+is t('March 6', :past),      '1997-03-06', 'Monthname dd (unnecessary :past)';
+is t('March 6', :future),    '1998-03-06', 'Monthname dd (:future)';
+is t('July 7'),              '1997-07-07', 'Monthname dd (today)';
+is t('July 7', :past),       '1996-07-07', 'Monthname dd (today but :past)';
+is t('July 7', :future),     '1998-07-07', 'Monthname dd (today but :future)';
+
+# ------------------------------------------------------------
+# Day of the week
+# ------------------------------------------------------------
+
+# Without :past, bare days of the week are assumed to refer
+# to the future.
+
+is t('Monday'),       '1997-07-07', 'Dayofweek';
+is t('Mon'),          '1997-07-07', 'Dow (1)';
+is t('Mon', :future), '1997-07-07', 'Dow (unnecessary :future, 1)';
+is t('Mon', :past),   '1997-06-30', 'Dow (:past, 1)';
+
+# Try the same thing with a day of the week that's after Wednesday.
+
+is t('Fri'),          '1997-07-04', 'Dow (2)';
+is t('Fri', :future), '1997-07-04', 'Dow (unnecessary :future, 2)';
+is t('Fri', :past),   '1997-06-27', 'Dow (:past, 2)';
+
+# ------------------------------------------------------------
+# Special names
+# ------------------------------------------------------------
+
+is t('yesterday'), '1997-07-02', '"yesterday"';
+is t('today'),     '1997-07-03', '"today"';
+is t('tomorrow'),  '1997-07-04', '"tomorrow"';
+
+# Also allow three-character abbreviations.
+
+is t('yes'), '1997-07-02', '"yesterday"';
+is t('tod'), '1997-07-03', '"today"';
+is t('tom'), '1997-07-04', '"tomorrow"';
 
 done_testing;
