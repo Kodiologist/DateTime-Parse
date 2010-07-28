@@ -1,4 +1,4 @@
-# module DateTime::Parse;
+module DateTime::Parse {
 
 my %months =
     <jan feb mar apr may jun jul aug sep oct nov dec> Z
@@ -57,7 +57,7 @@ our sub parse-date(
     my $year = $in<yyyy> || $in<y>;
     chars($year) == 2 and $year = min
         map({ $^n - $^n % 100 + $year },
-            $yy-center «+« (-100, 0, 100)),
+            $yy-center <<+<< (-100, 0, 100)),
         by => { abs $^n - $yy-center };
 
     my ($month, $day);
@@ -71,5 +71,7 @@ our sub parse-date(
     }
 
     Date.new(+$year, +$month, +$day);
+
+}
 
 }
