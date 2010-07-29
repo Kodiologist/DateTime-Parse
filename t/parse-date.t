@@ -127,6 +127,30 @@ is t('Wed', :past),   '1997-07-02', 'Dow (of today, unnecessary :past)';
 }
 
 # ------------------------------------------------------------
+# "next" and "last"
+# ------------------------------------------------------------
+
+is t('next Sat'),          '1997-07-05', '"next" Dow (unnecessary)';
+is t('next Sat', :future), '1997-07-05', '"next" Dow (unnecessary :future)';
+is t('next Sat', :past),   '1997-07-05', '"next" Dow (overriding :past)';
+
+is t('last Sat'),          '1997-06-28', '"last" Dow';
+is t('last Sat', :past),   '1997-06-28', '"last" Dow (unnecessary :past)';
+is t('last Sat', :future), '1997-06-28', '"last" Dow (overriding :future)';
+
+is t('Sat after next'),    '1997-07-12', 'Dow "after next" (1)';
+is t('Tue after next'),    '1997-07-15', 'Dow "after next" (2)';
+
+is t('Sat before last'),   '1997-06-21', 'Dow "before last" (1)';
+is t('Tue before last'),   '1997-06-24', 'Dow "before last" (2)';
+
+is t('next week'),         '1997-07-09', '"next week"';
+is t('last week'),         '1997-06-25', '"last week"';
+
+is t('week after next'),   '1997-07-16', '"week after next"';
+is t('week before last'),  '1997-06-18', '"week before last"';
+
+# ------------------------------------------------------------
 # Special names
 # ------------------------------------------------------------
 
