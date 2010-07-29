@@ -1,13 +1,26 @@
 module DateTime::Parse {
 
 my %months =
-    <jan feb mar apr may jun jul aug sep oct nov dec> Z
-    1 .. 12;
+    <jan feb mar apr may jun jul aug sep oct nov dec> Z 1 .. 12;
+
+my %dows =
+    <mo tu we th fr sa su> Z 1 .. 7;
 
 grammar StrDate {
-    token TOP { ^ <dow>? <sep> <absolute> <sep> <dow>? $ }
+    token TOP { ^ 
+                  <special>                       ||
+                  <dow>? <sep> <ymd> <sep> <dow>? ||
+                  <md>                            ||
+                  <dow>
+                $
+    }
     
-    token absolute {
+    token special { <specialname> <alpha>* }
+
+    token specialname { yes || tod || tom }
+      # Yesterday, today, and tomorrow.
+
+    token ymd {
          <yyyy>  <sep> <mon>   <sep> <d>     ||
          <an>    <sep> <an>    <sep> <y>     ||
          <d>     <sep> <mname> <sep> <y>     ||
@@ -15,6 +28,14 @@ grammar StrDate {
          <y>     <sep> <d>     <sep> <mname> ||
          <y>     <sep> <dth>   <sep> <mon>   ||
          <mname> <sep> <d>     <sep> <y>
+    }
+
+    token md {
+         <an>    <sep> <an>    ||
+         <mname> <sep> <d>     ||
+         <d>     <sep> <mname> ||
+         <dth>   <sep> <mon>   ||
+         <mon>   <sep> <dth>
     }
 
     token y { <yyyy> || \d\d }
@@ -41,18 +62,38 @@ grammar StrDate {
 
 }
 
+sub next-with-dow(Date $date, Int $dow, Bool $backwards?) {
+# Finds the nearest date with day of week $dow that's
+#   later than or equal to $date     if $backwards is false   and
+#   earlier than or equal to $date   if $backwards is true.
+    my $s = $backwards ?? -1 !! 1;
+    $date + $s * do $s * (7 + $dow - $date.day-of-week.Int) % 7
+}
+
 our sub parse-date(
         Str $s,
         Date :$today = Date.today,
         Int :$yy-center = $today.year,
           # The year used to resolve two-digit year specifications.
-          # prefer-past, prefer-future should also figure into this.
-        Bool :$mdy
+        Bool :$mdy,
+        Bool :$past, Bool :$future,
     ) is export {
+
+    $past and $future
+        and fail "parse-date: You can't specify both :past and :future";
 
     my $match = StrDate.parse(lc $s)
         or fail "parse-date: No parse: $s";
-    my $in = $match<absolute>;
+
+    $match<special> and return
+            $match<special><specialname> eq 'tod' ?? $today
+        !!  $match<special><specialname> eq 'yes' ?? $today - 1
+        !!                                           $today + 1;
+
+    $match<dow> and not $match<ymd> and return next-with-dow
+        $today, %dows{~$match<dow>[0]<downame>}, $past;
+
+    my $in = $match<ymd>;
 
     my $year = $in<yyyy> || $in<y>;
     chars($year) == 2 and $year = min
