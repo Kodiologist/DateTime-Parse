@@ -8,11 +8,11 @@ my %dows =
 
 grammar StrDate {
     token TOP { ^ [
-                  <special>                             ||
-                  <dow>                                 ||
-                  <dow>? <sep> <ymd_or_md> <sep> <dow>?
-                ] $
-    }
+        <special>                                         ||
+        <next_last>  <sep>  <weekish>                     ||
+        <weekish>   [<sep>  <after_before>]?              ||
+        <dow>?       <sep>  <ymd_or_md>     <sep>  <dow>?
+    ] $ }
     
     token special { <specialname> <alpha>* }
 
@@ -56,19 +56,26 @@ grammar StrDate {
     token an { \d\d? }
       # Ambiguous number.
 
+    token weekish { week || <dow> }
     token dow { <downame> <alpha>* }
     token downame { mo || tu || we || th || fr || sa || su }
+
+    token next_last { next || last }
+    token after_before { after <sep> next || before <sep> last }
     
     token sep { <- alpha - digit>* }
 
 }
 
+sub bm($b, $x) { $b ?? -$x !! $x }
+# bm($b, $x) is a shortcut for ($b ?? -1 !! 1) * $x
+
 sub next-with-dow(Date $date, Int $dow, Bool $backwards?) {
 # Finds the nearest date with day of week $dow that's
 #   later than or equal to $date     if $backwards is false   and
 #   earlier than or equal to $date   if $backwards is true.
-    my $s = $backwards ?? -1 !! 1;
-    $date + $s * do $s * (7 + $dow - $date.day-of-week.Int) % 7
+    $date + bm $backwards,
+        bm($backwards, (7 + $dow - $date.day-of-week.Int)) % 7
 }
 
 our sub parse-date(
@@ -77,52 +84,71 @@ our sub parse-date(
         Int :$yy-center = $today.year,
           # The year used to resolve two-digit year specifications.
         Bool :$mdy,
-        Bool :$past, Bool :$future,
+        Bool :$past is copy, Bool :$future is copy,
     ) is export {
 
     $past and $future
-        and fail "parse-date: You can't specify both :past and :future";
+        and fail "DateTime::Parse::parse-date: You can't specify both :past and :future";
 
     my $match = StrDate.parse(lc $s)
-        or fail "parse-date: No parse: $s";
+        or fail "DateTime::Parse::parse-date: No parse: $s";
 
-    $match<special> and return
-            $match<special><specialname> eq 'tod' ?? $today
-        !!  $match<special><specialname> eq 'yes' ?? $today - 1
-        !!                                           $today + 1;
+    if $match<special> {
+      # "Today" and the like.
 
-    $match<dow> and not $match<ymd_or_md> and return next-with-dow
-        $today, %dows{~$match<dow>[0]<downame>}, $past;
+        given ~ $match<special><specialname> {
+            when 'yes' { $today - 1 }
+            when 'tod' { $today }
+            when 'tom' { $today + 1 }
+        }
 
-    my $in = $match<ymd_or_md><md> || $match<ymd_or_md><ymd>;
+    } elsif $match<weekish> {
+      # "Monday" or "Tuesday before last" or "next week".
 
-    my ($month, $day);
-    if $in<an> {
-        $mdy ?? ($month, $day) !! ($day, $month) = @($in<an>);
-    }
-    else {
-        $month = ~ do $in<mon> || $in<mname>;
-        $month ~~ /<alpha>**3/ and $month = %months{~$/};
-        $day = ($in<d> || $in<dth>)[0];
-    }
+        if ~ do $match<next_last> or $match<after_before> -> $s {
+           $match<weekish> eq 'week' and return $today +
+               bm $s ~~ /last/, do
+               $match<after_before> ?? 14 !! 7;
+           $past = ? do $s ~~ /last/;
+        };
+        ($match<after_before> ?? bm($past, 7) !! 0) +
+            next-with-dow $today,
+            %dows{~$match<weekish><dow><downame>},
+            $past;
 
-    my $year = $in<yyyy> || $in<y>;
-    if $year {
-        chars($year) == 2 and $year = min
-            map({ $^n - $^n % 100 + $year },
-                $yy-center <<+<< (-100, 0, 100)),
-            by => { abs $^n - $yy-center };
     } else {
-        my $ty = $today.year;
-        my $then = Date.new($ty, +$month, +$day);
-        $year =
-               $past   && $then > $today ?? $ty - 1
-           !!  $future && $then < $today ?? $ty + 1
-           !!                               $ty;
+       # "1994/07/03" or "5th December".
+    
+        my $in = $match<ymd_or_md><md> || $match<ymd_or_md><ymd>;
+    
+        my ($month, $day);
+        if $in<an> {
+            $mdy ?? ($month, $day) !! ($day, $month) = @($in<an>);
+        }
+        else {
+            $month = ~ do $in<mon> || $in<mname>;
+            $month ~~ /<alpha>**3/ and $month = %months{~$/};
+            $day = ($in<d> || $in<dth>)[0];
+        }
+    
+        my $year = $in<yyyy> || $in<y>;
+        if $year {
+            chars($year) == 2 and $year = min
+                map({ $^n - $^n % 100 + $year },
+                    $yy-center <<+<< (-100, 0, 100)),
+                by => { abs $^n - $yy-center };
+        } else {
+            my $ty = $today.year;
+            my $then = Date.new($ty, +$month, +$day);
+            $year =
+                   $past   && $then > $today ?? $ty - 1
+               !!  $future && $then < $today ?? $ty + 1
+               !!                               $ty;
+        }
+    
+        Date.new(+$year, +$month, +$day);
+
     }
-
-    Date.new(+$year, +$month, +$day);
-
 }
 
 }
