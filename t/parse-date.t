@@ -8,7 +8,7 @@ sub d ($y, $m, $d) { Date.new($y, $m, $d) }
 
 sub p ($s, *%_) { ~ parse-date($s, |%_) }
 
-my $today = d(1997, 7, 3); # A Wednesday.
+my $today = d(1997, 7, 2); # A Wednesday.
 
 sub t ($s, *%_) { ~ parse-date($s, :$today, |%_) }
 
@@ -62,9 +62,16 @@ is t('Fr, 6 December 94'),   '1994-12-06', 'Dow, dd Monthname yy';
 # Month and day
 # ------------------------------------------------------------
 
+is t('6 12'),                '1997-12-06', 'dd mm';
+is t('6/12'),                '1997-12-06', 'dd/mm';
+is t('12 6', :mdy),          '1997-12-06', 'mm dd';
+is t('12/6', :mdy),          '1997-12-06', 'mm/dd';
+
 is t('6 Dec'),               '1997-12-06', 'dd Mon';
 is t('6 December'),          '1997-12-06', 'dd Monthname';
+is t('6th December'),        '1997-12-06', 'dd"th" Monthname';
 is t('Dec 6'),               '1997-12-06', 'Mon dd';
+is t('Dec 6th'),             '1997-12-06', 'Mon dd"th"';
 is t('December 6'),          '1997-12-06', 'Monthname dd (after today)';
 is t('December 6', :future), '1997-12-06', 'Monthname dd (unnecessary :future)';
 is t('December 6', :past),   '1996-12-06', 'Monthname dd (:past)';
@@ -72,8 +79,8 @@ is t('March 6'),             '1997-03-06', 'Monthname dd (before today)';
 is t('March 6', :past),      '1997-03-06', 'Monthname dd (unnecessary :past)';
 is t('March 6', :future),    '1998-03-06', 'Monthname dd (:future)';
 is t('July 7'),              '1997-07-07', 'Monthname dd (today)';
-is t('July 7', :past),       '1996-07-07', 'Monthname dd (today but :past)';
-is t('July 7', :future),     '1998-07-07', 'Monthname dd (today but :future)';
+is t('July 7', :past),       '1997-07-07', 'Monthname dd (today, unnecessary :past)';
+is t('July 7', :future),     '1997-07-07', 'Monthname dd (today, unnecessary :future)';
 
 # ------------------------------------------------------------
 # Day of the week
@@ -93,18 +100,44 @@ is t('Fri'),          '1997-07-04', 'Dow (2)';
 is t('Fri', :future), '1997-07-04', 'Dow (unnecessary :future, 2)';
 is t('Fri', :past),   '1997-06-27', 'Dow (:past, 2)';
 
+# How about Wednesday itself?
+
+is t('Wed'),          '1997-07-02', 'Dow (of today)';
+is t('Wed', :future), '1997-07-02', 'Dow (of today, unnecessary :future)';
+is t('Wed', :past),   '1997-07-02', 'Dow (of today, unnecessary :past)';
+
+# Tests starting from different days.
+
+{
+    my $d = Date.new(1922, 4, 3); # A Monday.
+    is p('Mon', :today($d)),        '1922-04-03', 'Dow (Mon to itself)';
+    is p('Tue', :today($d)),        '1922-04-04', 'Dow (Mon to Tue, forwards)';
+    is p('Tue', :today($d), :past), '1922-03-28', 'Dow (Mon to Tue, backwards)';
+    is p('Sat', :today($d)),        '1922-04-08', 'Dow (Mon to Sat, forwards)';
+    is p('Sat', :today($d), :past), '1922-04-01', 'Dow (Mon to Sat, backwards)';
+}
+
+{
+    my $d = Date.new(2031, 10, 19); # A Sunday.
+    is p('Sun', :today($d)),        '2031-10-19', 'Dow (Sun to itself)';
+    is p('Mon', :today($d)),        '2031-10-20', 'Dow (Sun to Mon, forwards)';
+    is p('Mon', :today($d), :past), '2031-10-13', 'Dow (Sun to Mon, backwards)';
+    is p('Sat', :today($d)),        '2031-10-25', 'Dow (Mon to Sat, forwards)';
+    is p('Sat', :today($d), :past), '2031-10-18', 'Dow (Mon to Sat, backwards)';
+}
+
 # ------------------------------------------------------------
 # Special names
 # ------------------------------------------------------------
 
-is t('yesterday'), '1997-07-02', '"yesterday"';
-is t('today'),     '1997-07-03', '"today"';
-is t('tomorrow'),  '1997-07-04', '"tomorrow"';
+is t('yesterday'), '1997-07-01', '"yesterday"';
+is t('today'),     '1997-07-02', '"today"';
+is t('tomorrow'),  '1997-07-03', '"tomorrow"';
 
 # Also allow three-character abbreviations.
 
-is t('yes'), '1997-07-02', '"yesterday"';
-is t('tod'), '1997-07-03', '"today"';
-is t('tom'), '1997-07-04', '"tomorrow"';
+is t('yes'), '1997-07-01', '"yes"(terday)';
+is t('tod'), '1997-07-02', '"tod"(ay)';
+is t('tom'), '1997-07-03', '"tom"(orrow)';
 
 done_testing;
