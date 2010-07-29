@@ -75,12 +75,12 @@ is t('Dec 6th'),             '1997-12-06', 'Mon dd"th"';
 is t('December 6'),          '1997-12-06', 'Monthname dd (after today)';
 is t('December 6', :future), '1997-12-06', 'Monthname dd (unnecessary :future)';
 is t('December 6', :past),   '1996-12-06', 'Monthname dd (:past)';
-is t('March 6'),             '1997-03-06', 'Monthname dd (before today)';
-is t('March 6', :past),      '1997-03-06', 'Monthname dd (unnecessary :past)';
-is t('March 6', :future),    '1998-03-06', 'Monthname dd (:future)';
-is t('July 7'),              '1997-07-07', 'Monthname dd (today)';
-is t('July 7', :past),       '1997-07-07', 'Monthname dd (today, unnecessary :past)';
-is t('July 7', :future),     '1997-07-07', 'Monthname dd (today, unnecessary :future)';
+is t('March 22'),            '1997-03-22', 'Monthname dd (before today)';
+is t('March 22', :past),     '1997-03-22', 'Monthname dd (unnecessary :past)';
+is t('March 22', :future),   '1998-03-22', 'Monthname dd (:future)';
+is t('July 2'),              '1997-07-02', 'Monthname dd (today)';
+is t('July 2', :past),       '1997-07-02', 'Monthname dd (today, unnecessary :past)';
+is t('July 2', :future),     '1997-07-02', 'Monthname dd (today, unnecessary :future)';
 
 # ------------------------------------------------------------
 # Day of the week
