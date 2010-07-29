@@ -6,8 +6,8 @@ yourself the trouble of finding or writing the appropriate specialized
 parser, but you may find it too slow or unpredictable.
 
     parse-date('6th December, 1994')  # Date.new(1994, 12, 6)
-    parse-date('12/6/1994')           # Same.
-    parse-date('6/12/1994', :mdy)     # Same.
+    parse-date('6/12/1994')           # Same.
+    parse-date('12/6/1994', :mdy)     # Same.
     parse-date('1994 12 2 + 4 days')  # Same.
     parse-date('tuesday', today => Date.new(1994, 12, 4)) # Same.
 
