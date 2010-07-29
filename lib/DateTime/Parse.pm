@@ -7,18 +7,19 @@ my %dows =
     <mo tu we th fr sa su> Z 1 .. 7;
 
 grammar StrDate {
-    token TOP { ^ 
-                  <special>                       ||
-                  <dow>? <sep> <ymd> <sep> <dow>? ||
-                  <md>                            ||
-                  <dow>
-                $
+    token TOP { ^ [
+                  <special>                             ||
+                  <dow>                                 ||
+                  <dow>? <sep> <ymd_or_md> <sep> <dow>?
+                ] $
     }
     
     token special { <specialname> <alpha>* }
 
     token specialname { yes || tod || tom }
       # Yesterday, today, and tomorrow.
+
+    token ymd_or_md { <ymd> || <md> }
 
     token ymd {
          <yyyy>  <sep> <mon>   <sep> <d>     ||
@@ -53,7 +54,7 @@ grammar StrDate {
     token th { st | nd | rd | th }
 
     token an { \d\d? }
-     # Ambiguous number.
+      # Ambiguous number.
 
     token dow { <downame> <alpha>* }
     token downame { mo || tu || we || th || fr || sa || su }
@@ -90,16 +91,10 @@ our sub parse-date(
         !!  $match<special><specialname> eq 'yes' ?? $today - 1
         !!                                           $today + 1;
 
-    $match<dow> and not $match<ymd> and return next-with-dow
+    $match<dow> and not $match<ymd_or_md> and return next-with-dow
         $today, %dows{~$match<dow>[0]<downame>}, $past;
 
-    my $in = $match<ymd>;
-
-    my $year = $in<yyyy> || $in<y>;
-    chars($year) == 2 and $year = min
-        map({ $^n - $^n % 100 + $year },
-            $yy-center <<+<< (-100, 0, 100)),
-        by => { abs $^n - $yy-center };
+    my $in = $match<ymd_or_md><md> || $match<ymd_or_md><ymd>;
 
     my ($month, $day);
     if $in<an> {
@@ -109,6 +104,21 @@ our sub parse-date(
         $month = ~ do $in<mon> || $in<mname>;
         $month ~~ /<alpha>**3/ and $month = %months{~$/};
         $day = ($in<d> || $in<dth>)[0];
+    }
+
+    my $year = $in<yyyy> || $in<y>;
+    if $year {
+        chars($year) == 2 and $year = min
+            map({ $^n - $^n % 100 + $year },
+                $yy-center <<+<< (-100, 0, 100)),
+            by => { abs $^n - $yy-center };
+    } else {
+        my $ty = $today.year;
+        my $then = Date.new($ty, +$month, +$day);
+        $year =
+               $past   && $then > $today ?? $ty - 1
+           !!  $future && $then < $today ?? $ty + 1
+           !!                               $ty;
     }
 
     Date.new(+$year, +$month, +$day);
