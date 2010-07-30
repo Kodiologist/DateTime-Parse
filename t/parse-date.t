@@ -79,6 +79,8 @@ is t('6th October'),          '1997-10-06', 'dd"th" Monthname';
 is t('Oct 6'),                '1997-10-06', 'Mon dd';
 is t('Oct 6th'),              '1997-10-06', 'Mon dd"th"';
 is t('October 6'),            '1997-10-06', 'Monthname dd';
+is t('Fri October 6'),        '1997-10-06', 'Dow Monthname dd';
+  # 6 October 1997 was a Monday.
 
 is t('Jul  2'),               '1997-07-02', 'Mon dd (today)';
 
@@ -141,17 +143,19 @@ is t('Fri'),          '1997-07-04', 'Dow (2)';
 is t('Fri', :future), '1997-07-04', 'Dow (unnecessary :future, 2)';
 is t('Fri', :past),   '1997-06-27', 'Dow (:past, 2)';
 
-# How about Wednesday itself?
+# How about Wednesday itself? A bare day of the week never yields
+# today.
 
-is t('Wed'),          '1997-07-02', 'Dow (of today)';
-is t('Wed', :future), '1997-07-02', 'Dow (of today, unnecessary :future)';
-is t('Wed', :past),   '1997-07-02', 'Dow (of today, unnecessary :past)';
+is t('Wed'),          '1997-07-09', 'Dow (of today, yielding next week)';
+is t('Wed', :future), '1997-07-09', 'Dow (of today, unnecessary :future)';
+is t('Wed', :past),   '1997-06-25', 'Dow (of today, :past)';
 
 # Tests starting from different days.
 
 {
     my $d = Date.new(1922, 4, 3); # A Monday.
-    is p('Mon', :today($d)),        '1922-04-03', 'Dow (Mon to itself)';
+    is p('Mon', :today($d)),        '1922-04-10', 'Dow (Mon to Mon, forwards)';
+    is p('Mon', :today($d), :past), '1922-03-27', 'Dow (Mon to Mon, backwards)';
     is p('Tue', :today($d)),        '1922-04-04', 'Dow (Mon to Tue, forwards)';
     is p('Tue', :today($d), :past), '1922-03-28', 'Dow (Mon to Tue, backwards)';
     is p('Sat', :today($d)),        '1922-04-08', 'Dow (Mon to Sat, forwards)';
@@ -160,7 +164,8 @@ is t('Wed', :past),   '1997-07-02', 'Dow (of today, unnecessary :past)';
 
 {
     my $d = Date.new(2031, 10, 19); # A Sunday.
-    is p('Sun', :today($d)),        '2031-10-19', 'Dow (Sun to itself)';
+    is p('Sun', :today($d)),        '2031-10-26', 'Dow (Sun to Sun, forwards)';
+    is p('Sun', :today($d), :past), '2031-10-12', 'Dow (Sun to Sun, backwards)';
     is p('Mon', :today($d)),        '2031-10-20', 'Dow (Sun to Mon, forwards)';
     is p('Mon', :today($d), :past), '2031-10-13', 'Dow (Sun to Mon, backwards)';
     is p('Sat', :today($d)),        '2031-10-25', 'Dow (Mon to Sat, forwards)';

@@ -72,10 +72,10 @@ sub bm($b, $x) { $b ?? -$x !! $x }
 
 sub next-with-dow(Date $date, Int $dow, Bool $backwards?) {
 # Finds the nearest date with day of week $dow that's
-#   later than or equal to $date     if $backwards is false   and
-#   earlier than or equal to $date   if $backwards is true.
+#   later than $date     if $backwards is false   and
+#   earlier than $date   if $backwards is true.
     $date + bm $backwards,
-        bm($backwards, (7 + $dow - $date.day-of-week.Int)) % 7
+        bm($backwards, (7 + $dow - $date.day-of-week.Int)) % 7 || 7
 }
 
 our sub parse-date(
