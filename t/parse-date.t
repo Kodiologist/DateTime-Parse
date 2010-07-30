@@ -4,13 +4,17 @@ use DateTime::Parse;
 
 plan *;
 
-sub d ($y, $m, $d) { Date.new($y, $m, $d) }
+sub d ($y, $m, $d) { Date.new: $y, $m, $d }
 
-sub p ($s, *%_) { ~ parse-date($s, |%_) }
+multi sub p ($s, *%_) { ~ parse-date $s, |%_ }
 
-my $today = d(1997, 7, 2); # A Wednesday.
+multi sub p ($s, $y, $m, $d, *%_) { ~ 
+    parse-date $s, today => d($y, $m, $d), |%_
+}
 
-sub t ($s, *%_) { ~ parse-date($s, :$today, |%_) }
+my $today = d 1997, 7, 2; # A Wednesday.
+
+sub t ($s, *%_) { ~ parse-date $s, :$today, |%_ }
 
 # ------------------------------------------------------------
 # Year, month, and day
@@ -23,16 +27,16 @@ is p('06  12 1994'),      '1994-12-06', 'dd mm yyyy';
 is p('06/12/1994'),       '1994-12-06', 'dd/mm/yyyy';
 is p('19941206'),         '1994-12-06', 'yyyymmdd';
 
-is t('6 12 94'),       '1994-12-06', 'dd mm yy';
-is p('6 12 94', today => d(1942, 7, 7)), '1894-12-06', 'dd mm yy (different :today, 1)';
-is p('6 12 94', yy-center => 1942), '1894-12-06', 'dd mm yy (:yy-center, 1)';
-is p('6 12 94', today => d(2055, 7, 7)), '2094-12-06', 'dd mm yy (different :today, 2)';
-is p('6 12 94', yy-center => 2055), '2094-12-06', 'dd mm yy (:yy-center, 2)';
-is t('6/12/94'),       '1994-12-06', 'dd/mm/yy';
-is t('6-12-94'),       '1994-12-06', 'dd-mm-yy';
-is t('12 6 94', :mdy), '1994-12-06', 'mm dd yy';
-is t('12/6/94', :mdy), '1994-12-06', 'mm/dd/yy';
-is t('12-6-94', :mdy), '1994-12-06', 'mm-dd-yy';
+is t('6 12 94'),                   '1994-12-06', 'dd mm yy';
+is p('6 12 94', 1942, 7, 7),       '1894-12-06', 'dd mm yy (different :today, 1)';
+is p('6 12 94', :yy-center(1942)), '1894-12-06', 'dd mm yy (:yy-center, 1)';
+is p('6 12 94', 2055, 7, 7),       '2094-12-06', 'dd mm yy (different :today, 2)';
+is p('6 12 94', :yy-center(2055)), '2094-12-06', 'dd mm yy (:yy-center, 2)';
+is t('6/12/94'),                   '1994-12-06', 'dd/mm/yy';
+is t('6-12-94'),                   '1994-12-06', 'dd-mm-yy';
+is t('12 6 94', :mdy),             '1994-12-06', 'mm dd yy';
+is t('12/6/94', :mdy),             '1994-12-06', 'mm/dd/yy';
+is t('12-6-94', :mdy),             '1994-12-06', 'mm-dd-yy';
 
 is p('06 Dec 1994'),         '1994-12-06', 'dd Mon yyyy';
 is p('6 December 1994'),     '1994-12-06', 'dd Monthname yyyy';
@@ -62,25 +66,62 @@ is t('Fr, 6 December 94'),   '1994-12-06', 'Dow, dd Monthname yy';
 # Month and day
 # ------------------------------------------------------------
 
-is t('6 12'),                '1997-12-06', 'dd mm';
-is t('6/12'),                '1997-12-06', 'dd/mm';
-is t('12 6', :mdy),          '1997-12-06', 'mm dd';
-is t('12/6', :mdy),          '1997-12-06', 'mm/dd';
+# When :past and :future are omitted, we pick the year that
+# yields the date nearest today.
 
-is t('6 Dec'),               '1997-12-06', 'dd Mon';
-is t('6 December'),          '1997-12-06', 'dd Monthname';
-is t('6th December'),        '1997-12-06', 'dd"th" Monthname';
-is t('Dec 6'),               '1997-12-06', 'Mon dd';
-is t('Dec 6th'),             '1997-12-06', 'Mon dd"th"';
-is t('December 6'),          '1997-12-06', 'Monthname dd (after today)';
-is t('December 6', :future), '1997-12-06', 'Monthname dd (unnecessary :future)';
-is t('December 6', :past),   '1996-12-06', 'Monthname dd (:past)';
-is t('March 22'),            '1997-03-22', 'Monthname dd (before today)';
-is t('March 22', :past),     '1997-03-22', 'Monthname dd (unnecessary :past)';
-is t('March 22', :future),   '1998-03-22', 'Monthname dd (:future)';
-is t('July 2'),              '1997-07-02', 'Monthname dd (today)';
-is t('July 2', :past),       '1997-07-02', 'Monthname dd (today, unnecessary :past)';
-is t('July 2', :future),     '1997-07-02', 'Monthname dd (today, unnecessary :future)';
+is t('6 10'),                 '1997-10-06', 'dd mm';
+is t('6/10'),                 '1997-10-06', 'dd/mm';
+is t('10 6', :mdy),           '1997-10-06', 'mm dd';
+is t('10/6', :mdy),           '1997-10-06', 'mm/dd';
+is t('6 Oct'),                '1997-10-06', 'dd Mon';
+is t('6 October'),            '1997-10-06', 'dd Monthname';
+is t('6th October'),          '1997-10-06', 'dd"th" Monthname';
+is t('Oct 6'),                '1997-10-06', 'Mon dd';
+is t('Oct 6th'),              '1997-10-06', 'Mon dd"th"';
+is t('October 6'),            '1997-10-06', 'Monthname dd';
+
+is t('Jul  2'),               '1997-07-02', 'Mon dd (today)';
+
+is t('Dec  9'),               '1997-12-09', 'Mon dd (Jul to Dec)';
+is p('Dec  9', 1997,  1,  1), '1996-12-09', 'Mon dd (Jan to Dec)';
+is p('Dec  9', 1997,  3,  3), '1996-12-09', 'Mon dd (Mar to Dec)';
+is p('Dec  9', 1997, 12,  3), '1997-12-09', 'Mon dd (Dec to Dec, forwards)';
+is p('Dec  9', 1997, 12, 15), '1997-12-09', 'Mon dd (Dec to Dec, backwards)';
+
+is t('Jan 18'),               '1997-01-18', 'Mon dd (Jul to Jan)';
+is p('Jan 18', 1997, 12, 31), '1998-01-18', 'Mon dd (Dec to Jan)';
+is p('Jan 18', 1997,  3,  3), '1997-01-18', 'Mon dd (Mar to Jan)';
+is p('Jan 18', 1997,  1,  1), '1997-01-18', 'Mon dd (Jan to Jan, forwards)';
+is p('Jan 18', 1997,  1, 30), '1997-01-18', 'Mon dd (Jan to Jan, backwards)';
+
+is p('Dec 25', 1989,  6, 25), '1988-12-25', 'Mon dd (preferring past by 1 day)';
+is p('Dec 25', 1989,  6, 26), '1989-12-25', 'Mon dd (preferring future by 1 day)';
+is p('Dec 25', 1988,  6, 25), '1988-12-25', 'Mon dd (preferring future in case of a tie)';
+is p('Dec 25', 1988,  6, 24), '1987-12-25', 'Mon dd (…but we can still go backwards in a leap year)';
+
+# With :past, never go forwards.
+
+is t('Mar 22', :past),        '1997-03-22', 'Mon dd (unnecessary :past)';
+is t('Dec  6', :past),        '1996-12-06', 'Mon dd (:past)';
+
+is p('Jan  2', 1997,  1,  1, :past), '1996-01-02', 'Mon dd (:past, Jan  1 to Jan  2)';
+is p('Jan  2', 1997,  1,  2, :past), '1997-01-02', 'Mon dd (:past, Jan  2 to Jan  2)';
+is p('Jan  2', 1997,  1,  3, :past), '1997-01-02', 'Mon dd (:past, Jan  3 to Jan  2)';
+is p('Dec 30', 1997, 12, 31, :past), '1997-12-30', 'Mon dd (:past, Dec 31 to Dec 30)';
+is p('Dec 30', 1997, 12, 30, :past), '1997-12-30', 'Mon dd (:past, Dec 30 to Dec 30)';
+is p('Dec 30', 1997, 12, 29, :past), '1996-12-30', 'Mon dd (:past, Dec 29 to Dec 30)';
+
+# With :future, never go backwards.
+
+is t('Dec  6', :future),      '1997-12-06', 'Mon dd (unnecessary :future)';
+is t('Mar 22', :future),      '1998-03-22', 'Mon dd (:future)';
+
+is p('Jan  2', 1997,  1,  1, :future), '1997-01-02', 'Mon dd (:future, Jan  1 to Jan  2)';
+is p('Jan  2', 1997,  1,  2, :future), '1997-01-02', 'Mon dd (:future, Jan  2 to Jan  2)';
+is p('Jan  2', 1997,  1,  3, :future), '1998-01-02', 'Mon dd (:future, Jan  3 to Jan  2)';
+is p('Dec 30', 1997, 12, 31, :future), '1998-12-30', 'Mon dd (:future, Dec 31 to Dec 30)';
+is p('Dec 30', 1997, 12, 30, :future), '1997-12-30', 'Mon dd (:future, Dec 30 to Dec 30)';
+is p('Dec 30', 1997, 12, 29, :future), '1997-12-30', 'Mon dd (:future, Dec 29 to Dec 30)';
 
 # ------------------------------------------------------------
 # Day of the week
@@ -151,7 +192,7 @@ is t('week after next'),   '1997-07-16', '"week after next"';
 is t('week before last'),  '1997-06-18', '"week before last"';
 
 # ------------------------------------------------------------
-# Special names
+# Special name
 # ------------------------------------------------------------
 
 is t('yesterday'), '1997-07-01', '"yesterday"';

@@ -123,12 +123,13 @@ our sub parse-date(
     
         my ($month, $day);
         if $in<an> {
-            $mdy ?? ($month, $day) !! ($day, $month) = @($in<an>);
+            $mdy ?? ($month, $day) !! ($day, $month) =
+                map +*, @($in<an>);
         }
         else {
             $month = ~ do $in<mon> || $in<mname>;
             $month ~~ /<alpha>**3/ and $month = %months{~$/};
-            $day = ($in<d> || $in<dth>)[0];
+            $day = +($in<d> || $in<dth>)[0];
         }
     
         my $year = $in<yyyy> || $in<y>;
@@ -139,14 +140,15 @@ our sub parse-date(
                 by => { abs $^n - $yy-center };
         } else {
             my $ty = $today.year;
-            my $then = Date.new($ty, +$month, +$day);
+            my $then = Date.new: $ty, $month, $day;
             $year =
-                   $past   && $then > $today ?? $ty - 1
-               !!  $future && $then < $today ?? $ty + 1
-               !!                               $ty;
+                   $past   ?? $ty - ($then > $today)
+               !!  $future ?? $ty + ($then < $today)
+               !!  min ($ty + 1, $ty, $ty - 1), by =>
+                       { abs $today - Date.new: $^n, $month, $day }
         }
     
-        Date.new(+$year, +$month, +$day);
+        Date.new(+$year, $month, $day);
 
     }
 }
