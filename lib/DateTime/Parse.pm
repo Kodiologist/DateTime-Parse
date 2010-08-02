@@ -7,11 +7,12 @@ my %dows =
     <mo tu we th fr sa su> Z 1 .. 7;
 
 grammar StrDate {
+
     token TOP { ^ [
         <special>                                         ||
-        <next_last>  <sep>  <weekish>                     ||
-        <weekish>   [<sep>  <after_before>]?              ||
-        <dow>?       <sep>  <ymd_or_md>     <sep>  <dow>?
+        <next_last> <sep> <weekish>                       ||
+        <weekish>   [<sep> <after_before>]?               ||
+        [<dow> <sep>]?   [<ymd> || <md>]   [<sep> <dow>]?
     ] $ }
     
     token special { <specialname> <alpha>* }
@@ -19,35 +20,27 @@ grammar StrDate {
     token specialname { yes || tod || tom }
       # Yesterday, today, and tomorrow.
 
-    token ymd_or_md { <ymd> || <md> }
-
     token ymd {
-         <yyyy>  <sep> <mon>   <sep> <d>     ||
-         <an>    <sep> <an>    <sep> <y>     ||
-         <d>     <sep> <mname> <sep> <y>     ||
-         <y>     <sep> <mon>   <sep> <dth>   ||
-         <y>     <sep> <d>     <sep> <mname> ||
-         <y>     <sep> <dth>   <sep> <mon>   ||
-         <mname> <sep> <d>     <sep> <y>
+         [$<y> = <yyyy>] <sep> <md> ||
+         <md>            <sep> <y>
     }
 
     token md {
          <an>    <sep> <an>    ||
          <mname> <sep> <d>     ||
          <d>     <sep> <mname> ||
-         <dth>   <sep> <mon>   ||
-         <mon>   <sep> <dth>
+         <dth>   <sep> <m>     ||
+         <m>     <sep> <dth>
     }
 
-    token y { <yyyy> || \d\d }
+    token y { \d\d(\d\d)? }
     token yyyy { \d**4 }
 
-    token mon { <mname> | <m> }
+    token m { <mname> | \d\d? }
     token mname { <mon3> <alpha>* }
     token mon3
        { jan || feb || mar || apr || may || jun ||
          jul || aug || sep || oct || nov || dec }
-    token m { \d\d? }
 
     token d { (\d\d?) <th>? }
     token dth { (\d\d?) <th> }
@@ -119,21 +112,25 @@ our sub parse-date(
     } else {
        # "1994/07/03" or "5th December".
     
-        my $in = $match<ymd_or_md><md> || $match<ymd_or_md><ymd>;
-    
+        my $md = $match<md> || $match<ymd><md>;
+
         my ($month, $day);
-        if $in<an> {
-            $mdy ?? ($month, $day) !! ($day, $month) =
-                map +*, @($in<an>);
+        if $md<an> {
+            # Ensure that "2010/12/31" is interpreted correctly
+            # even when !$mdy.
+            $mdy || $match<ymd> && $match<ymd><y>.from < $md.from
+                ?? ($month, $day) !! ($day, $month) =
+                    map +*, @($md<an>);
         }
         else {
-            $month = ~ do $in<mon> || $in<mname>;
+            $month = ~ do $md<m> || $md<mname>;
             $month ~~ /<alpha>**3/ and $month = %months{~$/};
-            $day = +($in<d> || $in<dth>)[0];
+            $day = +($md<d> || $md<dth>)[0];
         }
     
-        my $year = $in<yyyy> || $in<y>;
-        if $year {
+        my $year;
+        if $match<ymd> {
+            $year = $match<ymd><y>;
             chars($year) == 2 and $year = min
                 map({ $^n - $^n % 100 + $year },
                     $yy-center <<+<< (-100, 0, 100)),
