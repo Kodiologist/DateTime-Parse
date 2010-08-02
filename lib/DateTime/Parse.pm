@@ -1,14 +1,19 @@
 module DateTime::Parse {
 
+
+
 my %months =
     <jan feb mar apr may jun jul aug sep oct nov dec> Z 1 .. 12;
 
 my %dows =
     <mo tu we th fr sa su> Z 1 .. 7;
 
+my %special-names = yes => -1, tod => 0, tom => 1;
+  # Yesterday, today, and tomorrow.
+
 grammar StrDate {
 
-    token TOP { ^ [
+    token date { ^ [
         <special>                                         ||
         <next_last> <sep> <weekish>                       ||
         <weekish>   [<sep> <after_before>]?               ||
@@ -18,7 +23,6 @@ grammar StrDate {
     token special { <specialname> <alpha>* }
 
     token specialname { yes || tod || tom }
-      # Yesterday, today, and tomorrow.
 
     token ymd {
          [$<y> = <yyyy>] <sep> <md> ||
@@ -83,17 +87,13 @@ our sub parse-date(
     $past and $future
         and fail "DateTime::Parse::parse-date: You can't specify both :past and :future";
 
-    my $match = StrDate.parse(lc $s)
+    my $match = StrDate.parse(lc($s), :rule('date'))
         or fail "DateTime::Parse::parse-date: No parse: $s";
 
     if $match<special> {
       # "Today" and the like.
 
-        given ~ $match<special><specialname> {
-            when 'yes' { $today - 1 }
-            when 'tod' { $today }
-            when 'tom' { $today + 1 }
-        }
+        $today + %special-names{~$match<special><specialname>}
 
     } elsif $match<weekish> {
       # "Monday" or "Tuesday before last" or "next week".
@@ -149,5 +149,8 @@ our sub parse-date(
 
     }
 }
+
+
+
 
 }
