@@ -21,11 +21,12 @@ sub t ($s, *%_) { ~ parse-date $s, :$today, |%_ }
 # ------------------------------------------------------------
 
 is p('1994 12 6'),        '1994-12-06', 'yyyy mm dd';
-is p('1994  12   6'),     '1994-12-06', 'yyyy mm dd (with spaces)';
-is p('1994  12  06'),     '1994-12-06', 'yyyy mm dd (with spaces and leading 0)';
+is p('1994  12   6'),     '1994-12-06', 'yyyy mm dd (extra spaces)';
+is p('1994  12  06'),     '1994-12-06', 'yyyy mm dd (extra spaces and leading 0)';
 is p('06  12 1994'),      '1994-12-06', 'dd mm yyyy';
 is p('06/12/1994'),       '1994-12-06', 'dd/mm/yyyy';
 is p('19941206'),         '1994-12-06', 'yyyymmdd';
+is p('1994 12 6', :mdy),  '1994-12-06', 'yyyy mm dd (unnecessary :mdy)';
 
 is t('6 12 94'),                   '1994-12-06', 'dd mm yy';
 is p('6 12 94', 1942, 7, 7),       '1894-12-06', 'dd mm yy (different :today, 1)';
