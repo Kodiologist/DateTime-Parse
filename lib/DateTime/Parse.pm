@@ -37,7 +37,30 @@ sub next-with-dow(Date $date, Int $dow, $backwards?) {
 
 grammar DateTime::Parse::G {
 
+    token TOP { ^ <datetime> $ }
+
+    token datetime { <date> <sep> <time> }
+
     regex date_only { ^ <date> $ }
+
+    token time {
+        <noonmid>                                           ||
+        <hour> <timetail>                                   ||
+        <hour> <tsep> <minute> [<tsep> <sec>]? <timetail>?
+    }
+
+    token hour { \d\d? }
+
+    token minute { \d\d }
+
+    token sec { (\d\d) <subsec>? }
+    token subsec { '.' (\d+) }
+
+    token timetail { <sep> (<noonmid> || <ampm>) }
+    token noonmid { noon | midnight }
+    token ampm { am | pm }
+
+    token tsep { ':' }
 
     token date {
         <special>                                         ||
@@ -102,9 +125,35 @@ class DateTime::Parse::G::Actions {
 
     method new(*%_) {
         %_<past> and %_<future>
-            and fail "DateTime::Parse: You can't specify both :past and :future";
+            and fail "You can't specify both :past and :future";
         self.bless: *, |%_;
     }
+
+    method datetime ($/) {
+        make DateTime.new: date => $<date>.ast, |($<time>.ast);
+    }
+
+    method time ($/) { make {
+        hour =>
+            $<noonmid>
+         ?? tt-hour(12, ~$<noonmid>)
+         !! $<timetail>
+         ?? tt-hour($<hour>.Int, ~$<timetail>[0][0])
+         !! $<hour>,
+        minute => $<minute>,
+        second => $<sec> && $<sec>[0].ast
+    } }
+
+    multi tt-hour(12, 'midnight') {  0 }
+    multi tt-hour(12, 'noon')     { 12 }
+    multi tt-hour(12, 'am')       {  0 }
+    multi tt-hour($n, 'am')       { $n }
+    multi tt-hour(12, 'pm')       { 12 }
+    multi tt-hour($n, 'pm')       { 12 + $n }
+    multi tt-hour($a, $b)         { say [$a, $b].perl; exit; }
+
+    method sec ($/) { make $0 + do $<subsec> && $<subsec>[0].ast }
+    method subsec ($/) { make $0 / 10**($0.chars) }
 
     method date($/) {
         
@@ -186,8 +235,15 @@ class DateTime::Parse::G::Actions {
 our sub parse-date(Str $s, *%_) is export {
     my $actions = DateTime::Parse::G::Actions.new: |%_;
     my $match = DateTime::Parse::G.parse(lc($s), :rule('date_only'), :actions($actions))
-        or die "DateTime::Parse::parse-date: No parse: $s";
+        or die "No parse: $s";
     $match<date>.ast;
+}
+
+our sub parse-datetime(Str $s, *%_) is export {
+    my $actions = DateTime::Parse::G::Actions.new: |%_;
+    my $match = DateTime::Parse::G.parse(lc($s), :actions($actions))
+        or die "No parse: $s";
+    $match<datetime>.ast;
 }
 
 
