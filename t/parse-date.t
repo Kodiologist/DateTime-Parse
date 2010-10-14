@@ -8,8 +8,8 @@ sub d ($y, $m, $d) { Date.new: $y, $m, $d }
 
 multi sub p ($s, *%_) { ~ parse-date $s, |%_ }
 
-multi sub p ($s, $y, $m, $d, *%_) { ~ 
-    parse-date $s, today => d($y, $m, $d), |%_
+multi sub p ($s, $y, $m, $d, *%_) {
+    ~ parse-date $s, today => d($y, $m, $d), |%_
 }
 
 my $today = d 1997, 7, 2; # A Wednesday.
@@ -40,24 +40,24 @@ is t('12/6/94', :mdy),             '1994-12-06', 'mm/dd/yy';
 is t('12-6-94', :mdy),             '1994-12-06', 'mm-dd-yy';
 
 is p('06 Dec 1994'),         '1994-12-06', 'dd Mon yyyy';
- is p('6Dec 1994'),           '1994-12-06', 'ddMon yyyy';
- is p('6 Dec1994'),           '1994-12-06', 'dd Monyyyy';
- is p('6Dec1994'),            '1994-12-06', 'ddMonyyyy';
+is p('6Dec 1994'),           '1994-12-06', 'ddMon yyyy';
+is p('6 Dec1994'),           '1994-12-06', 'dd Monyyyy';
+is p('6Dec1994'),            '1994-12-06', 'ddMonyyyy';
 is p('6 December 1994'),     '1994-12-06', 'dd Monthname yyyy';
- is p('6December1994'),       '1994-12-06', 'ddMonthnameyyyy';
+is p('6December1994'),       '1994-12-06', 'ddMonthnameyyyy';
 is p('6th December, 1994'),  '1994-12-06', 'dd"th" Monthname, yyyy';
 is p('1st December 1994'),   '1994-12-01', 'dd"st" Monthname yyyy';
 is p('2nd December 1994'),   '1994-12-02', 'dd"nd" Monthname yyyy';
 is p('3rd December 1994'),   '1994-12-03', 'dd"rd" Monthname yyyy';
 is p('Dec 6 1994'),          '1994-12-06', 'Mon dd yyyy';
- is p('Dec6 1994'),           '1994-12-06', 'Mondd yyyy';
+is p('Dec6 1994'),           '1994-12-06', 'Mondd yyyy';
 is p('December 06, 1994'),   '1994-12-06', 'Monthname dd, yyyy';
 is p('December 6th, 1994'),  '1994-12-06', 'Monthname dd"th" yyyy';
 is p('1994 Dec 6'),          '1994-12-06', 'yyyy Mon dd';
 is p('1994 6 Dec'),          '1994-12-06', 'yyyy dd Mon';
 
 is t('6 December 94'), '1994-12-06', 'dd Monthname yy';
- is t('6December94'), '1994-12-06', 'ddMonthnameyy';
+is t('6December94'),   '1994-12-06', 'ddMonthnameyy';
 is t('Dec 6 94'),      '1994-12-06', 'Mon dd yy';
 
 # Ignore the day of week when the month and day are given.
