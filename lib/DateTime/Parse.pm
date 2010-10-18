@@ -39,7 +39,7 @@ grammar DateTime::Parse::G {
 
     token TOP { ^ <datetime> $ }
 
-    token datetime { <date> <sep> <time> }
+    regex datetime { <date> <sep> <time> }
 
     regex date_only { ^ <date> $ }
 
@@ -111,14 +111,16 @@ grammar DateTime::Parse::G {
     token an { \d\d? }
       # Ambiguous number.
 
-    token sep { <- alpha - digit>* }
+    token sep { <- alpha - digit - tsep>* }
 
 }
 
 class DateTime::Parse::G::Actions {
-    has Date $.today = Date.today;
+    has DateTime $.now;
+    has Date $.today;
+    has $.timezone;
     has Int $.yy-center = $.today.year;
-        # The year used to resolve two-digit year specifications.
+      # The year used to resolve two-digit year specifications.
     has Bool $.mdy;
     has Bool $.past;
     has Bool $.future;
@@ -130,7 +132,8 @@ class DateTime::Parse::G::Actions {
     }
 
     method datetime ($/) {
-        make DateTime.new: date => $<date>.ast, |($<time>.ast);
+        make DateTime.new:
+            date => $<date>.ast, |($<time>.ast), :$.timezone;
     }
 
     method time ($/) { make {
@@ -150,7 +153,6 @@ class DateTime::Parse::G::Actions {
     multi tt-hour($n, 'am')       { $n }
     multi tt-hour(12, 'pm')       { 12 }
     multi tt-hour($n, 'pm')       { 12 + $n }
-    multi tt-hour($a, $b)         { say [$a, $b].perl; exit; }
 
     method sec ($/) { make $0 + do $<subsec> && $<subsec>[0].ast }
     method subsec ($/) { make $0 / 10**($0.chars) }
@@ -188,7 +190,7 @@ class DateTime::Parse::G::Actions {
                !!  $.future ?? $ty + ($then < $.today)
                !!  min ($ty + 1, $ty, $ty - 1), by =>
                        { abs $.today - Date.new: $^n, $month, $day }        
-            make Date.new: +$year, $month, $day;
+            make Date.new: $year, $month, $day;
     
         }
 
@@ -217,9 +219,9 @@ class DateTime::Parse::G::Actions {
     # "5th December"
         make $<an>
           ?? $.mdy
-             ?? (+$<an>[0], +$<an>[1])
-             !! (+$<an>[1], +$<an>[0])
-          !! (($<m> || $<mname>).ast, +($<d> || $<dth>)[0])
+             ?? ($<an>[0], $<an>[1])
+             !! ($<an>[1], $<an>[0])
+          !! (($<m> || $<mname>).ast, ($<d> || $<dth>)[0])
     }
 
     method m($/) { make $<mname> ?? $<mname>.ast !! ~$/ }
@@ -232,14 +234,25 @@ class DateTime::Parse::G::Actions {
 # Exported functions
 # ----------------------------------------------------------------
 
-our sub parse-date(Str $s, *%_) is export {
+our sub parse-date(Str $s, *%_ is copy) is export {
+    %_.exists('now') and die ':now not permitted; use :today instead';
+    %_<timezone> //= %_<utc> ?? 0 !! $*TZ;
+    %_<today> //= DateTime.now.in-timezone(%_<timezone>).Date;
     my $actions = DateTime::Parse::G::Actions.new: |%_;
-    my $match = DateTime::Parse::G.parse(lc($s), :rule('date_only'), :actions($actions))
+      # $actions.now is left undefined; we don't need it.
+    my $match = DateTime::Parse::G.parse(lc($s), :rule<date_only>, :actions($actions))
         or die "No parse: $s";
     $match<date>.ast;
 }
 
-our sub parse-datetime(Str $s, *%_) is export {
+our sub parse-datetime(Str $s, *%_ is copy) is export {
+    %_.exists('today') and die ':today not permitted; use :now instead';
+    %_<timezone> //=
+        %_<utc> ?? 0
+     !! %_<now> ?? %_<now>.timezone
+     !!            $*TZ ;
+    (%_<now> //= DateTime.now) .= in-timezone: %_<timezone>;
+    %_<today> = %_<now>.Date;
     my $actions = DateTime::Parse::G::Actions.new: |%_;
     my $match = DateTime::Parse::G.parse(lc($s), :actions($actions))
         or die "No parse: $s";
