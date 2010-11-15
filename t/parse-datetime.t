@@ -58,7 +58,7 @@ is f('3:02 am', &nyc2007-tz), '2007-03-11T03:02:00-0400', 'Absolute with timezon
 
 # ------------------------------------------------------------
 
-&f = &parse-datetime; #sub ($s, *%_) { parse-datetime $s, |%_ };
+&f = &parse-datetime;
 sub y ($year) { { now => DateTime.new(:$year) } }
 
 is f('6 12 94 11 am', :utc), '1994-12-06T11:00:00Z', 'mm dd yy hh "am"';

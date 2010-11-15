@@ -1,4 +1,4 @@
-module DateTime::Parse {
+module DateTime::Parse;
 
 # ---------------------------------------------------------------
 # Data
@@ -10,7 +10,8 @@ my %months =
 my %dows =
     <mo tu we th fr sa su> Z 1 .. 7;
 
-my %special-names = yes => -1, tod => 0, tom => 1;
+my %special-names =
+    yes => -1, tod => 0, tom => 1;
   # Yesterday, today, and tomorrow.
 
 # ---------------------------------------------------------------
@@ -39,14 +40,14 @@ grammar DateTime::Parse::G {
 
     token TOP { ^ <datetime> $ }
 
-    regex datetime { <date> <sep> <time> }
+    regex datetime { <date> <.sep> <time> }
 
     regex date_only { ^ <date> $ }
 
     token time {
-        <noonmid>                                           ||
-        <hour> <timetail>                                   ||
-        <hour> <tsep> <minute> [<tsep> <sec>]? <timetail>?
+        <noonmid>                                            ||
+        <hour> <timetail>                                    ||
+        <hour> <.tsep> <minute> [<.tsep> <sec>]? <timetail>?
     }
 
     token hour { \d\d? }
@@ -56,50 +57,50 @@ grammar DateTime::Parse::G {
     token sec { (\d\d) <subsec>? }
     token subsec { '.' (\d+) }
 
-    token timetail { <sep> (<noonmid> || <ampm>) }
+    token timetail { <.sep> (<.noonmid> || <.ampm>) }
     token noonmid { noon | midnight }
     token ampm { am | pm }
 
     token tsep { ':' }
 
     token date {
-        <special>                                         ||
-        <next_last> <sep> <weekish>                       ||
-        <weekish>   [<sep> <after_before>]?               ||
-        [<dow> <sep>]?   [<ymd> || <md>]   [<sep> <dow>]?
+        <special>                                             ||
+        <next_last> <.sep> <weekish>                          ||
+        <weekish>   [<.sep> <after_before>]?                  ||
+        [<.dow> <.sep>]?   [<ymd> || <md>]   [<.sep> <.dow>]?
     }
     
-    token special { <specialname> <alpha>* }
+    token special { <specialname> <.alpha>* }
     token specialname { yes || tod || tom }
 
     token weekish { week || <dow> }
-    token dow { <downame> <alpha>* }
+    token dow { <downame> <.alpha>* }
     token downame { mo || tu || we || th || fr || sa || su }
 
     token next_last { next || last }
-    token after_before { after <sep> next || before <sep> last }
+    token after_before { after <.sep> next || before <.sep> last }
     
     token ymd {
-         <yyyy> <sep> <an> <sep> <an> ||
+         <yyyy> <.sep> <an> <.sep> <an> ||
            # A special case because the <an>s have to be
            # interpreted as (month, day) regardless of :mdy.
-         <yyyy> <sep> <md>            ||
-         <md>   <sep> <y>
+         <yyyy> <.sep> <md>            ||
+         <md>   <.sep> <y>
     }
 
     token md {
-         <an>    <sep> <an>    ||
-         <mname> <sep> <d>     ||
-         <d>     <sep> <mname> ||
-         <dth>   <sep> <m>     ||
-         <m>     <sep> <dth>
+         <an>    <.sep> <an>    ||
+         <mname> <.sep> <d>     ||
+         <d>     <.sep> <mname> ||
+         <dth>   <.sep> <m>     ||
+         <m>     <.sep> <dth>
     }
 
     token y { \d\d(\d\d)? }
     token yyyy { \d**4 }
 
     token m { <mname> | \d\d? }
-    token mname { <mon3> <alpha>* }
+    token mname { <mon3> <.alpha>* }
     token mon3
        { jan || feb || mar || apr || may || jun ||
          jul || aug || sep || oct || nov || dec }
@@ -210,7 +211,7 @@ class DateTime::Parse::G::Actions {
         # Handle two-digit years.
         chars($year) == 2 and $year = min
            map({ $^n - $^n % 100 + $year },
-               $.yy-center <<+<< (-100, 0, 100)),
+               $.yy-center «+« (-100, 0, 100)),
            by => { abs $^n - $.yy-center };
         make Date.new: $year, $month, $day;
     }
@@ -260,9 +261,4 @@ our sub parse-datetime(Str $s, *%_ is copy) is export {
     my $match = DateTime::Parse::G.parse(lc($s), :actions($actions))
         or die "No parse: $s";
     $match<datetime>.ast;
-}
-
-
-
-
 }
