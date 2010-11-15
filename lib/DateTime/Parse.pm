@@ -236,6 +236,7 @@ class DateTime::Parse::G::Actions {
 
 our sub parse-date(Str $s, *%_ is copy) is export {
     %_.exists('now') and die ':now not permitted; use :today instead';
+    %_<local> and %_<utc> and die "You can't specify both :local and :utc";
     %_<timezone> //= %_<utc> ?? 0 !! $*TZ;
     %_<today> //= DateTime.now.in-timezone(%_<timezone>).Date;
     my $actions = DateTime::Parse::G::Actions.new: |%_;
@@ -247,10 +248,12 @@ our sub parse-date(Str $s, *%_ is copy) is export {
 
 our sub parse-datetime(Str $s, *%_ is copy) is export {
     %_.exists('today') and die ':today not permitted; use :now instead';
+    %_<local> and %_<utc> and die "You can't specify both :local and :utc";
     %_<timezone> //=
-        %_<utc> ?? 0
-     !! %_<now> ?? %_<now>.timezone
-     !!            $*TZ ;
+        %_<utc>   ?? 0
+     !! %_<local> ?? $*TZ
+     !! %_<now>   ?? %_<now>.timezone
+     !!              $*TZ;
     (%_<now> //= DateTime.now) .= in-timezone: %_<timezone>;
     %_<today> = %_<now>.Date;
     my $actions = DateTime::Parse::G::Actions.new: |%_;

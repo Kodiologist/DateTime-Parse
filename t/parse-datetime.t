@@ -74,4 +74,7 @@ is f('week after next midnight', |y(2000)), '2000-01-15T00:00:00Z', '"week after
   # after next midnight".
 is f('Friday noon', |y(1988)), '1988-01-08T12:00:00Z', 'Dow "noon"';
 
+is f('6 Jun 06 6:12 am', :local).timezone, $*TZ, ':local';
+is f('6 Jun 06 6:12 am', |y(1988), :local).timezone, $*TZ, ':local with conflicting :now';
+
 done_testing;
