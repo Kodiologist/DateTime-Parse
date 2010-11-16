@@ -40,7 +40,8 @@ grammar DateTime::Parse::G {
 
     token TOP { ^ <datetime> $ }
 
-    regex datetime { <date> <.sep> <time> }
+    regex datetime { <date> <.sep> <time> ||
+                     <time> <.sep> <date> }
 
     regex date_only { ^ <date> $ }
 
