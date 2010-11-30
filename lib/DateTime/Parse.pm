@@ -24,6 +24,14 @@ sub in (Str $haystack, Str $needle) {
 
 sub bm($b, $x) { $b ?? -$x !! $x }
 
+sub list-cmp(@a, @b) {
+    for @a Z @b -> $a, $b {
+        $a before $b and return -1;
+        $a after $b and return 1;
+    }
+    return 0;
+}
+
 sub next-with-dow(Date $date, Int $dow, $backwards?) {
 # Finds the nearest date with day of week $dow that's
 #   later than $date     if $backwards is false   and
@@ -40,8 +48,8 @@ grammar DateTime::Parse::G {
 
     token TOP { ^ <datetime> $ }
 
-    regex datetime { <date> <.sep> <time> ||
-                     <time> <.sep> <date> }
+    regex datetime { <date> <.sep> <time>    ||
+                     <time> [<.sep> <date>]? }
 
     regex date_only { ^ <date> $ }
 
@@ -134,8 +142,19 @@ class DateTime::Parse::G::Actions {
     }
 
     method datetime ($/) {
-        make DateTime.new:
-            date => $<date>.ast, |($<time>.ast), :$.timezone;
+        $<date> and return make DateTime.new:
+            date => $<date>[0].ast, |($<time>.ast), :$.timezone;
+        # No $<date>, so we have to guess.
+        my %t = $<time>.ast;
+        my $cmp = list-cmp
+            ($.now.hour, $.now.minute, $.now.second),
+            (%t<hour>, %t<minute>, %t<second>);
+        my &f = { DateTime.new: :$^date, |%t, :$.timezone };
+        make
+               $.past   ?? f($.today - +($cmp == -1))
+           !!  $.future ?? f($.today + +($cmp == 1))
+           !!  min (f($.today + 1), f($.today), f($.today - 1)),
+                   by => { abs $^dt.Instant - $.now.Instant };
     }
 
     method time ($/) { make {

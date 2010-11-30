@@ -4,9 +4,11 @@ use DateTime::Parse;
 
 plan *;
 
-# ------------------------------------------------------------
-
 my &f;
+
+# ------------------------------------------------------------
+# Time before date or date before time
+# ------------------------------------------------------------
 
 for False, True -> $date-first {
 
@@ -60,24 +62,7 @@ for False, True -> $date-first {
 }
 
 # ------------------------------------------------------------
-
-&f = { parse-datetime "11 Mar 2007 $^s", :$^timezone };
-
-is f('5:06 PM', 2*60*60 + 3*60), '2007-03-11T17:06:00+0203', 'Absolute with timezone (+)';
-is f('2:13:14', -(12*60*60 + 6*60)), '2007-03-11T02:13:14-1206', 'Absolute with timezone (-)';
-
-sub nyc2007-tz($dt, $to-utc) {
-    my $t = ($dt.month, $dt.day, $dt.hour);
-    my $critical-hour = $to-utc ?? 2 !! 7;
-    my $dst =
-        ([or] (3, 11, $critical-hour) »<=>« $t) == 0|-1 &&
-        ([or] $t »<=>« (11, 4, $critical-hour)) == -1;
-    3600 * ($dst ?? -4 !! -5);
-}
-
-is f('1:55 am', &nyc2007-tz), '2007-03-11T01:55:00-0500', 'Absolute with timezone (Callable, before DST)';
-is f('3:02 am', &nyc2007-tz), '2007-03-11T03:02:00-0400', 'Absolute with timezone (Callable, in DST)';
-
+# Tricky cases
 # ------------------------------------------------------------
 
 &f = &parse-datetime;
@@ -98,5 +83,76 @@ is f('Friday noon', |y(1988)), '1988-01-08T12:00:00Z', 'Dow "noon"';
 
 is f('6 Jun 06 6:12 am', :local).timezone, $*TZ, ':local';
 is f('6 Jun 06 6:12 am', |y(1988), :local).timezone, $*TZ, ':local with conflicting :now';
+
+# ------------------------------------------------------------
+# A time without a date
+# ------------------------------------------------------------
+
+sub with-time($hour, $minute, $second, $s, *%_) {
+    parse-datetime $s, |%_, now => DateTime.new: 
+        year => 1983, month => 7, day => 7,
+        :$hour, :$minute, :$second
+};
+
+&f = &with-time.assuming(0, 0, 0);
+
+is f('02:56'),          '1983-07-07T02:56:00Z', 'hh:mm';
+is f('02:56:07.333'),   '1983-07-07T02:56:07Z', 'hh:mm:ss.sss';
+is f('14:56:07.333'),   '1983-07-06T14:56:07Z', 'hh:mm:ss.sss (yesterday)';
+is f('2 am'),           '1983-07-07T02:00:00Z', 'hh "am"';
+is f('2:56:07.333 pm'), '1983-07-06T14:56:07Z', 'hh:mm:ss.sss "pm"';
+
+is f('11:59:59.999'),   '1983-07-07T11:59:59Z', 'Bare time barely today';
+is f('12:00:00.001'),   '1983-07-06T12:00:00Z', 'Bare time barely yesterday';
+is f('12:00'),          '1983-07-07T12:00:00Z', 'Bare time barely today (preferring the future)';
+is f('0:00'),           '1983-07-07T00:00:00Z', 'Bare time mapping to :now';
+
+&f = &with-time.assuming(15, 38, 7.2);
+
+is f('17:00'),          '1983-07-07T17:00:00Z', 'Bare time just after :now';
+is f('13:00'),          '1983-07-07T13:00:00Z', 'Bare time just before :now';
+is f('03:38:07.1999'),  '1983-07-08T03:38:07Z', 'Bare time barely future';
+is f('03:38:07.2001'),  '1983-07-07T03:38:07Z', 'Bare time barely past';
+is f('03:38:07.2'),     '1983-07-08T03:38:07Z', 'Bare time barely future (by preference)';
+is f('15:38:07.2'),     '1983-07-07T15:38:07Z', 'Bare time mapping to :now';
+
+&f = &with-time.assuming(15, 38, 7.2, :past);
+
+is f('17:00'),          '1983-07-06T17:00:00Z', 'Bare time just after :now but for :past';
+is f('13:00'),          '1983-07-07T13:00:00Z', 'Bare time just before :now (unnecessary :past)';
+is f('03:38:07.1999'),  '1983-07-07T03:38:07Z', 'Bare time barely future but for :past';
+is f('03:38:07.2001'),  '1983-07-07T03:38:07Z', 'Bare time barely past (unnecessary :past)';
+is f('03:38:07.2'),     '1983-07-07T03:38:07Z', 'Bare time barely future by preference but for :past';
+is f('15:38:07.2'),     '1983-07-07T15:38:07Z', 'Bare time mapping to :now (unnecessary :past)';
+
+&f = &with-time.assuming(15, 38, 7.2, :future);
+
+is f('17:00'),          '1983-07-07T17:00:00Z', 'Bare time just after :now (unnecessary :future)';
+is f('13:00'),          '1983-07-08T13:00:00Z', 'Bare time just before :now but for :future';
+is f('03:38:07.1999'),  '1983-07-08T03:38:07Z', 'Bare time barely future (unnecessary :future)';
+is f('03:38:07.2001'),  '1983-07-08T03:38:07Z', 'Bare time barely past but for :future';
+is f('03:38:07.2'),     '1983-07-08T03:38:07Z', 'Bare time barely future (by preference, unnecessary :future)';
+is f('15:38:07.2'),     '1983-07-07T15:38:07Z', 'Bare time mapping to :now (unnecessary :future)';
+
+# ------------------------------------------------------------
+# :timezone
+# ------------------------------------------------------------
+
+&f = { parse-datetime "11 Mar 2007 $^s", :$^timezone };
+
+is f('5:06 PM', 2*60*60 + 3*60), '2007-03-11T17:06:00+0203', 'Absolute with timezone (+)';
+is f('2:13:14', -(12*60*60 + 6*60)), '2007-03-11T02:13:14-1206', 'Absolute with timezone (-)';
+
+sub nyc2007-tz($dt, $to-utc) {
+    my $t = ($dt.month, $dt.day, $dt.hour);
+    my $critical-hour = $to-utc ?? 2 !! 7;
+    my $dst =
+        ([or] (3, 11, $critical-hour) »<=>« $t) == 0|-1 &&
+        ([or] $t »<=>« (11, 4, $critical-hour)) == -1;
+    3600 * ($dst ?? -4 !! -5);
+}
+
+is f('1:55 am', &nyc2007-tz), '2007-03-11T01:55:00-0500', 'Absolute with timezone (Callable, before DST)';
+is f('3:02 am', &nyc2007-tz), '2007-03-11T03:02:00-0400', 'Absolute with timezone (Callable, in DST)';
 
 done_testing;
