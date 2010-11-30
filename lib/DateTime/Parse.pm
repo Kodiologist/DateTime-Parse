@@ -151,10 +151,10 @@ class DateTime::Parse::G::Actions {
             (%t<hour>, %t<minute>, %t<second>);
         my &f = { DateTime.new: :$^date, |%t, :$.timezone };
         make
-               $.past   ?? f($.today - +($cmp == -1))
-           !!  $.future ?? f($.today + +($cmp == 1))
-           !!  min (f($.today + 1), f($.today), f($.today - 1)),
-                   by => { abs $^dt.Instant - $.now.Instant };
+              $.past   ?? f($.today - +($cmp == -1))
+          !!  $.future ?? f($.today + +($cmp == 1))
+          !!  min (f($.today + 1), f($.today), f($.today - 1)),
+                  by => { abs $^dt.Instant - $.now.Instant };
     }
 
     method time ($/) { make {
@@ -207,10 +207,10 @@ class DateTime::Parse::G::Actions {
             my $ty = $.today.year;
             my $then = Date.new: $ty, $month, $day;
             my $year =
-                   $.past   ?? $ty - ($then > $.today)
-               !!  $.future ?? $ty + ($then < $.today)
-               !!  min ($ty + 1, $ty, $ty - 1), by =>
-                       { abs $.today - Date.new: $^n, $month, $day }        
+                  $.past   ?? $ty - ($then > $.today)
+              !!  $.future ?? $ty + ($then < $.today)
+              !!  min ($ty + 1, $ty, $ty - 1), by =>
+                      { abs $.today - Date.new: $^n, $month, $day }        
             make Date.new: $year, $month, $day;
     
         }
@@ -229,10 +229,20 @@ class DateTime::Parse::G::Actions {
          ?? (+$<an>[0], +$<an>[1])
          !! @($<md>.ast);
         # Handle two-digit years.
-        chars($year) == 2 and $year = min
-           map({ $^n - $^n % 100 + $year },
-               $.yy-center «+« (-100, 0, 100)),
-           by => { abs $^n - $.yy-center };
+        if chars($year) == 1|2 {
+            my @ys =
+                map { $^n - $^n % 100 + $year },
+                $.yy-center «+« (-100, 0, 100);
+            my &f = { ($^n, $.today.month, $.today.day) };
+            # We use &list-cmp instead of Date comparison
+            # in order to avoid problems with February 29.
+            $.past and @ys .= grep:
+                { list-cmp(f($.today.year), f($^n)) != -1 };
+            $.future and @ys .= grep:
+                { list-cmp(f($.today.year), f($^n)) != 1 };
+            @ys or die "No possible century for two-digit year $year with {$.past ?? ':past' !! ':future'}, :now($.now), and :yy-center($.yy-center)";
+            $year = min @ys, by => { abs $^n - $.yy-center };
+        }
         make Date.new: $year, $month, $day;
     }
 

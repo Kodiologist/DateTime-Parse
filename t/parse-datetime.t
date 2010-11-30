@@ -2,7 +2,7 @@ use v6;
 use Test;
 use DateTime::Parse;
 
-plan *;
+plan 91;
 
 my &f;
 
@@ -154,5 +154,3 @@ sub nyc2007-tz($dt, $to-utc) {
 
 is f('1:55 am', &nyc2007-tz), '2007-03-11T01:55:00-0500', 'Absolute with timezone (Callable, before DST)';
 is f('3:02 am', &nyc2007-tz), '2007-03-11T03:02:00-0400', 'Absolute with timezone (Callable, in DST)';
-
-done_testing;

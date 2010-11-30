@@ -2,17 +2,15 @@ use v6;
 use Test;
 use DateTime::Parse;
 
-plan *;
-
-sub d ($y, $m, $d) { Date.new: $y, $m, $d }
+plan 134;
 
 multi sub p ($s, *%_) { ~ parse-date $s, |%_ }
 
 multi sub p ($s, $y, $m, $d, *%_) {
-    ~ parse-date $s, today => d($y, $m, $d), |%_
+    ~ parse-date $s, today => Date.new($y, $m, $d), |%_
 }
 
-my $today = d 1997, 7, 2; # A Wednesday.
+my $today = Date.new: 1997, 7, 2; # A Wednesday.
 
 sub t ($s, *%_) { ~ parse-date $s, :$today, |%_ }
 
@@ -33,11 +31,22 @@ is p('6 12 94', 1942, 7, 7),       '1894-12-06', 'dd mm yy (different :today, 1)
 is p('6 12 94', :yy-center(1942)), '1894-12-06', 'dd mm yy (:yy-center, 1)';
 is p('6 12 94', 2055, 7, 7),       '2094-12-06', 'dd mm yy (different :today, 2)';
 is p('6 12 94', :yy-center(2055)), '2094-12-06', 'dd mm yy (:yy-center, 2)';
+is t('29 2 00', :yy-center(1990)), '2000-02-29', 'dd mm yy (with February 29)';
 is t('6/12/94'),                   '1994-12-06', 'dd/mm/yy';
 is t('6-12-94'),                   '1994-12-06', 'dd-mm-yy';
 is t('12 6 94', :mdy),             '1994-12-06', 'mm dd yy';
 is t('12/6/94', :mdy),             '1994-12-06', 'mm/dd/yy';
 is t('12-6-94', :mdy),             '1994-12-06', 'mm-dd-yy';
+
+is t('6 12 94', :past),                   '1994-12-06', 'dd mm yy (unnecessary :past)';
+is p('6 12 94', 1993, 2, 2, :past),       '1894-12-06', 'dd mm yy (:past with different :today)';
+is t('6 12 94', :past, :yy-center(1763)), '1794-12-06', 'dd mm yy (:past with :yy-center)';
+dies_ok t('6 12 94', :past, :yy-center(2050)), 'dd mm yy (:past with incompatible :yy-center)';
+
+is t('6 12 94', :future),                   '2094-12-06', 'dd mm yy (:future)';
+is p('6 12 94', 1942, 7, 7, :future),       '1994-12-06', 'dd mm yy (:future with different :today)';
+is t('6 12 94', :future, :yy-center(2200)), '2194-12-06', 'dd mm yy (:future with :yy-center)';
+dies_ok t('6 12 94', :future, :yy-center(1950)), 'dd mm yy (:future with incompatible :yy-center)';
 
 is p('06 Dec 1994'),         '1994-12-06', 'dd Mon yyyy';
 is p('6Dec 1994'),           '1994-12-06', 'ddMon yyyy';
@@ -47,7 +56,7 @@ is p('6 December 1994'),     '1994-12-06', 'dd Monthname yyyy';
 is p('6December1994'),       '1994-12-06', 'ddMonthnameyyyy';
 is p('6th December, 1994'),  '1994-12-06', 'dd"th" Monthname, yyyy';
 is p('1st December 1994'),   '1994-12-01', 'dd"st" Monthname yyyy';
-is p('2nd December 1994'),   '1994-12-02', 'dd"nd" Monthname yyyy';
+is p('22nd December 1994'),  '1994-12-22', 'dd"nd" Monthname yyyy';
 is p('3rd December 1994'),   '1994-12-03', 'dd"rd" Monthname yyyy';
 is p('Dec 6 1994'),          '1994-12-06', 'Mon dd yyyy';
 is p('Dec6 1994'),           '1994-12-06', 'Mondd yyyy';
@@ -216,5 +225,3 @@ is t('tomorrow'),  '1997-07-03', '"tomorrow"';
 is t('yes'), '1997-07-01', '"yes"(terday)';
 is t('tod'), '1997-07-02', '"tod"(ay)';
 is t('tom'), '1997-07-03', '"tom"(orrow)';
-
-done_testing;
