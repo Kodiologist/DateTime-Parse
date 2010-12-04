@@ -1,5 +1,7 @@
 module DateTime::Parse;
 
+use DateTime::Parse::TZ;
+
 # ---------------------------------------------------------------
 # Data
 # ---------------------------------------------------------------
@@ -13,6 +15,8 @@ my %dows =
 my %special-names =
     yes => -1, tod => 0, tom => 1;
   # Yesterday, today, and tomorrow.
+
+my %zones = DateTime::Parse::TZ::zones();
 
 # ---------------------------------------------------------------
 # Internal functions
