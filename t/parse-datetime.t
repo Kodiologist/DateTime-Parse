@@ -2,7 +2,7 @@ use v6;
 use Test;
 use DateTime::Parse;
 
-plan 115;
+plan 123;
 
 sub y ($year) { { now => DateTime.new(:$year) } }
 
@@ -77,6 +77,26 @@ for False, True -> $date-first {
     test f('13:13 GMT'),             '13:13:00',   'hh:mm "GMT"';
     test f('13:13 UYT'),             '16:13:00',   'hh:mm "UYT"';
 }
+
+# ------------------------------------------------------------
+# Intermingled date and time
+# ------------------------------------------------------------
+
+&f = &parse-datetime.assuming(:utc);
+
+# Month and day, then time, then year (no two-digit years allowed!)
+
+is f('May 6 3:27 2010'), '2010-05-06T03:27:00Z', 'Mon dd hh:mm yyyy';
+is f('5/6 3:27 2010', :mdy), '2010-05-06T03:27:00Z', 'mm/dd hh:mm yyyy';
+is f('11th June noon 2009'), '2009-06-11T12:00:00Z', 'dd Mon "noon" yyyy';
+is f('11 6 12 pm 2009'), '2009-06-11T12:00:00Z', 'dd mm hh "pm" yyyy';
+
+# Time, then date, then time zone
+
+is f('17:00 1994 5 4 EDT'), '1994-05-04T21:00:00Z', 'hh:mm yyyy mm dd TZ';
+is f('3 pm MAY 3 14 MST', |y(2000)), '2014-05-03T22:00:00Z', 'hh "pm" Mon dd yy TZ';
+is f('midnight tomorrow UTC', |y(1990)), '1990-01-02T00:00:00Z', '"midnight tomorrow UTC"';
+is f('midnight Wed UTC', |y(1990)), '1990-01-03T00:00:00Z', '"midnight" Dow "UTC"';
 
 # ------------------------------------------------------------
 # Tricky cases

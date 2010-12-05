@@ -62,15 +62,16 @@ my grammar G {
     token TOP { ^ <datetime> $ }
 
     regex datetime {
-        <date> <.sep> <time>    ||
-        <time> [<.sep> <date>]?
+        <date> <.sep> <time> <.sep> <yyyy>? ||
+          # The <yyyy> is in case the time is after the month and
+          # day but before the year (yuck). When it exists, we
+          # ignore any year given in <date>.
+        <time> <.sep> [<date> <zone>?]?
     }
 
     regex date_only { ^ <date> $ }
 
-    token time { <tbody> [\h* <zone>]? }
-      # We use \h* instead of <.sep> so as not to swallow up
-      # hyphens prematurely.
+    token time { <tbody> <zone>? }
 
     token tbody {
         <noonmid>                                     ||
@@ -89,15 +90,20 @@ my grammar G {
     token noonmid { noon | midnight }
     token ampm { am | pm }
 
-    token zone { <offset> || <zone_abbr> }
+    token zone {
+        <.- alnum - [\-:+,.]>*
+        [<offset> || <zone_abbr>]
+        <.sep>
+          # The trailing <.sep> is for closing parentheses.
+    }
     token offset { 'utc'? ('+' || '-' || '−') <hour> [':'? <minute>]? }
-    token zone_abbr { <alpha> ** 2..5 }
+    token zone_abbr { (<alpha> ** 2..5) <?{%zones.exists: uc $0}> }
 
     token date {
         <special>                                             ||
-        <next_last> <.sep> <weekish>                          ||
-        <weekish>   [<.sep> <after_before>]?                  ||
-        [<.dow> <.sep>]?   [<ymd> || <md>]   [<.sep> <.dow>]?
+        <next_last> <.sep>   <weekish>                        ||
+        <weekish>   <.sep>   <after_before>?                  ||
+        <.dow>?     <.sep>   [<ymd> || <md>]   <.sep> <.dow>?
     }
     
     token special { <specialname> <.alpha>* }
@@ -143,7 +149,7 @@ my grammar G {
     token an { \d\d? }
       # Ambiguous number.
 
-    token sep { <- alpha - digit - [:]>* }
+    token sep { [' at ' || ' on ' || <- alnum - [:]>]* }
 
 }
 
@@ -158,11 +164,15 @@ my class G::Actions {
     has Bool $.future;
 
     method datetime ($/) {
-        my $timezone = $<time><zone>[0]
+        my $timezone =
+            $<zone>
+         ?? $<zone>[0].ast
+         !! $<time><zone>[0]
          ?? $<time><zone>[0].ast
          !! $.timezone;
         my %t = $<time><tbody>.ast;
         my &dt = { DateTime.new: :$^date, |%t, :$timezone };
+        $<yyyy> and return make dt $<date>[0].ast.clone: year => ~$<yyyy>;
         $<date> and return make dt $<date>[0].ast;
         # No $<date>, so we have to guess.
         my $cmp = list-cmp

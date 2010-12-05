@@ -4,6 +4,10 @@ module DateTime::Parse::TZ;
 
 # /(\S+)\s+(\S.+?)\s*UTC(([+-]\d+)?)((:30)?)/ or die; my ($abb, $d, $h, $m) = ($1, $2, $3, $5); $_ = sprintf "    %-5s   =>   %+6d,   # %s", $abb, (60*60*$h + ($m ? $h/abs($h)*60*30*$m : 0)), $d
 
+# It's important that none of these coincide with the other
+# abbreviations defined at the top of Parse.pm. Camelia forbid
+# there should be a time zone named "MAY".
+
 our sub zones () {
     ACDT    =>   +36000,   # Australian Central Daylight Time
     ACST    =>   +32400,   # Australian Central Standard Time
