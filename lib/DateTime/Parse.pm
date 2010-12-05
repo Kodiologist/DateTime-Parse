@@ -44,23 +44,38 @@ sub next-with-dow(Date $date, Int $dow, $backwards?) {
         bm($backwards, (7 + $dow - $date.day-of-week.Int)) % 7 || 7
 }
 
+sub consistency-check (%o) {
+    (%o<timezone>.defined, %o<utc>, %o<local>).grep(?*).elems > 1
+        and die "No more than one of :timezone, :utc, and :local is allowed";
+    %o<past> and %o<future>
+        and die "You can't specify both :past and :future";
+}
+
 # ----------------------------------------------------------------
 # Grammar and actions
 # ----------------------------------------------------------------
 
 grammar DateTime::Parse::G {
+# Note that parse-date and parse-datetime downcase all input
+# before trying to parse it with this grammar.
 
     token TOP { ^ <datetime> $ }
 
-    regex datetime { <date> <.sep> <time>    ||
-                     <time> [<.sep> <date>]? }
+    regex datetime {
+        <date> <.sep> <time>    ||
+        <time> [<.sep> <date>]?
+    }
 
     regex date_only { ^ <date> $ }
 
-    token time {
-        <noonmid>                                            ||
-        <hour> <timetail>                                    ||
-        <hour> <.tsep> <minute> [<.tsep> <sec>]? <timetail>?
+    token time { <tbody> [\h* <zone>]? }
+      # We use \h* instead of <.sep> so as not to swallow up
+      # hyphens prematurely.
+
+    token tbody {
+        <noonmid>                                     ||
+        <hour> <timetail>                             ||
+        <hour> ':' <minute> [':' <sec>]? <timetail>?
     }
 
     token hour { \d\d? }
@@ -74,7 +89,9 @@ grammar DateTime::Parse::G {
     token noonmid { noon | midnight }
     token ampm { am | pm }
 
-    token tsep { ':' }
+    token zone { <offset> || <zone_abbr> }
+    token offset { 'utc'? ('+' || '-' || '−') <hour> [':'? <minute>]? }
+    token zone_abbr { <alpha> ** 2..5 }
 
     token date {
         <special>                                             ||
@@ -114,9 +131,10 @@ grammar DateTime::Parse::G {
 
     token m { <mname> | \d\d? }
     token mname { <mon3> <.alpha>* }
-    token mon3
-       { jan || feb || mar || apr || may || jun ||
-         jul || aug || sep || oct || nov || dec }
+    token mon3 {
+        jan || feb || mar || apr || may || jun ||
+        jul || aug || sep || oct || nov || dec
+    }
 
     token d { (\d\d?) <th>? }
     token dth { (\d\d?) <th> }
@@ -125,7 +143,7 @@ grammar DateTime::Parse::G {
     token an { \d\d? }
       # Ambiguous number.
 
-    token sep { <- alpha - digit - tsep>* }
+    token sep { <- alpha - digit - [:]>* }
 
 }
 
@@ -139,37 +157,46 @@ class DateTime::Parse::G::Actions {
     has Bool $.past;
     has Bool $.future;
 
-    method new(*%_) {
-        %_<past> and %_<future>
-            and fail "You can't specify both :past and :future";
-        self.bless: *, |%_;
-    }
-
     method datetime ($/) {
-        $<date> and return make DateTime.new:
-            date => $<date>[0].ast, |($<time>.ast), :$.timezone;
+        my $timezone = $<time><zone>[0]
+         ?? $<time><zone>[0].ast
+         !! $.timezone;
+        my %t = $<time><tbody>.ast;
+        my &dt = { DateTime.new: :$^date, |%t, :$timezone };
+        $<date> and return make dt $<date>[0].ast;
         # No $<date>, so we have to guess.
-        my %t = $<time>.ast;
         my $cmp = list-cmp
             ($.now.hour, $.now.minute, $.now.second),
             (%t<hour>, %t<minute>, %t<second>);
-        my &f = { DateTime.new: :$^date, |%t, :$.timezone };
         make
-              $.past   ?? f($.today - +($cmp == -1))
-          !!  $.future ?? f($.today + +($cmp == 1))
-          !!  min (f($.today + 1), f($.today), f($.today - 1)),
+              $.past   ?? dt($.today - +($cmp == -1))
+          !!  $.future ?? dt($.today + +($cmp == 1))
+          !!  min (dt($.today + 1), dt($.today), dt($.today - 1)),
                   by => { abs $^dt.Instant - $.now.Instant };
     }
 
-    method time ($/) { make {
+    method zone ($/) {
+        make ($<offset> || $<zone_abbr>).ast
+    }
+
+    method offset ($/) {
+        make bm ($0 ne '+'), [+]
+            60 * 60 * $<hour>, (60 * $<minute>[0] if $<minute>)
+    }
+
+    method zone_abbr ($/) {
+        make %zones{uc $/} // die "Unknown time zone: {~$/}"
+    }
+
+    method tbody ($/) { make {
         hour =>
             $<noonmid>
          ?? tt-hour(12, ~$<noonmid>)
          !! $<timetail>
          ?? tt-hour($<hour>.Int, ~$<timetail>[0][0])
-         !! $<hour>,
-        minute => $<minute>,
-        second => $<sec> && $<sec>[0].ast
+         !! +$<hour>,
+        minute => +$<minute>,
+        second => $<sec> && +$<sec>[0]
     } }
 
     multi tt-hour(12, 'midnight') {  0 }
@@ -271,7 +298,7 @@ class DateTime::Parse::G::Actions {
 
 our sub parse-date(Str $s, *%_ is copy) is export {
     %_.exists('now') and die ':now not permitted; use :today instead';
-    %_<local> and %_<utc> and die "You can't specify both :local and :utc";
+    consistency-check %_;
     %_<timezone> //= %_<utc> ?? 0 !! $*TZ;
     %_<today> //= DateTime.now.in-timezone(%_<timezone>).Date;
     my $actions = DateTime::Parse::G::Actions.new: |%_;
@@ -283,16 +310,19 @@ our sub parse-date(Str $s, *%_ is copy) is export {
 
 our sub parse-datetime(Str $s, *%_ is copy) is export {
     %_.exists('today') and die ':today not permitted; use :now instead';
-    %_<local> and %_<utc> and die "You can't specify both :local and :utc";
-    %_<timezone> //=
+    consistency-check %_;
+    my $requested-tz = %_<timezone> // do
         %_<utc>   ?? 0
      !! %_<local> ?? $*TZ
-     !! %_<now>   ?? %_<now>.timezone
+     !!              Any;
+    %_<timezone> //= $requested-tz // do
+        %_<now>   ?? %_<now>.timezone
      !!              $*TZ;
     (%_<now> //= DateTime.now) .= in-timezone: %_<timezone>;
     %_<today> = %_<now>.Date;
     my $actions = DateTime::Parse::G::Actions.new: |%_;
     my $match = DateTime::Parse::G.parse(lc($s), :actions($actions))
         or die "No parse: $s";
-    $match<datetime>.ast;
+    my $dt = $match<datetime>.ast;
+    $requested-tz.defined ?? $dt.in-timezone($requested-tz) !! $dt
 }

@@ -2,7 +2,9 @@ use v6;
 use Test;
 use DateTime::Parse;
 
-plan 91;
+plan 115;
+
+sub y ($year) { { now => DateTime.new(:$year) } }
 
 my &f;
 
@@ -16,13 +18,13 @@ for False, True -> $date-first {
         $date-first ?? "5 Mar 2008 $^s" !! "$^s 11 Aug 1999",
         :utc };
 
-    sub test($got, $should-be, $desc, :$subsecond) {
+    sub test($got, $should-be, $desc, $next-day = False, :$subsecond) {
         is $got,
             $subsecond
              ?? $should-be
              !! $date-first
-             ?? "2008-03-05T{$should-be}Z"
-             !! "1999-08-11T{$should-be}Z",
+             ?? "2008-03-0{5 + $next-day}T{$should-be}Z"
+             !! "1999-08-{11 + $next-day}T{$should-be}Z",
             [~]
                 $date-first
                  ?? "dd Mon yyyy $desc"
@@ -59,6 +61,21 @@ for False, True -> $date-first {
     test f('00:00'),                 '00:00:00',   '"00:00"';
     test f('12 AM'),                 '00:00:00',   '"12 AM"';
 
+    test f('10:00 -02'),             '12:00:00',   'hh:mm -hh';
+    test f('10:00 UTC-02'),          '12:00:00',   'hh:mm "UTC"-hh';
+    test f('noon +0347'),            '08:13:00',   '"noon" +hhmm';
+    test f('noon UTC+0347'),         '08:13:00',   '"noon" "UTC"+hhmm';
+    test f('8:36 pm -11:11'),        '07:47:00',   'hh "pm" -hh:mm', :next-day;
+    test f('8:36 pm UTC-11:11'),     '07:47:00',   'hh "pm" "UTC"-hh:mm', :next-day;
+
+    # For now, abbreviations are interpreted as static offsets, not
+    # as time zones with DST or whatnot.
+    test f('9 am EST'),              '14:00:00',   'hh "am" TZ';
+    test f('9:00 EDT'),              '13:00:00',   'hh:mm TZ';
+    test f('3:00:01 pm PST'),        '23:00:01',   'hh:mm:ss "pm" TZ';
+    test f('13:13 UTC'),             '13:13:00',   'hh:mm "UTC"';
+    test f('13:13 GMT'),             '13:13:00',   'hh:mm "GMT"';
+    test f('13:13 UYT'),             '16:13:00',   'hh:mm "UYT"';
 }
 
 # ------------------------------------------------------------
@@ -66,7 +83,6 @@ for False, True -> $date-first {
 # ------------------------------------------------------------
 
 &f = &parse-datetime;
-sub y ($year) { { now => DateTime.new(:$year) } }
 
 is f('6 12 94 11 am', :utc), '1994-12-06T11:00:00Z', 'mm dd yy hh "am"';
 is f('6 12 94 11 am', :mdy, :utc), '1994-06-12T11:00:00Z', 'dd mm yy hh "am"';
@@ -80,9 +96,6 @@ is f('week after next midnight', |y(2000)), '2000-01-15T00:00:00Z', '"week after
   # Interpreted as "midnight a week after next", not "a week
   # after next midnight".
 is f('Friday noon', |y(1988)), '1988-01-08T12:00:00Z', 'Dow "noon"';
-
-is f('6 Jun 06 6:12 am', :local).timezone, $*TZ, ':local';
-is f('6 Jun 06 6:12 am', |y(1988), :local).timezone, $*TZ, ':local with conflicting :now';
 
 # ------------------------------------------------------------
 # A time without a date
@@ -140,8 +153,8 @@ is f('15:38:07.2'),     '1983-07-07T15:38:07Z', 'Bare time mapping to :now (unne
 
 &f = { parse-datetime "11 Mar 2007 $^s", :$^timezone };
 
-is f('5:06 PM', 2*60*60 + 3*60), '2007-03-11T17:06:00+0203', 'Absolute with timezone (+)';
-is f('2:13:14', -(12*60*60 + 6*60)), '2007-03-11T02:13:14-1206', 'Absolute with timezone (-)';
+is f('5:06 PM', 2*60*60 + 3*60), '2007-03-11T17:06:00+0203', 'Absolute with :timezone (+)';
+is f('2:13:14', -(12*60*60 + 6*60)), '2007-03-11T02:13:14-1206', 'Absolute with :timezone (-)';
 
 sub nyc2007-tz($dt, $to-utc) {
     my $t = ($dt.month, $dt.day, $dt.hour);
@@ -152,5 +165,8 @@ sub nyc2007-tz($dt, $to-utc) {
     3600 * ($dst ?? -4 !! -5);
 }
 
-is f('1:55 am', &nyc2007-tz), '2007-03-11T01:55:00-0500', 'Absolute with timezone (Callable, before DST)';
-is f('3:02 am', &nyc2007-tz), '2007-03-11T03:02:00-0400', 'Absolute with timezone (Callable, in DST)';
+is f('1:55 am', &nyc2007-tz), '2007-03-11T01:55:00-0500', 'Absolute with :timezone (Callable, before DST)';
+is f('3:02 am', &nyc2007-tz), '2007-03-11T03:02:00-0400', 'Absolute with :timezone (Callable, during DST)';
+
+is parse-datetime('6 Jun 06 6:12 am', :local).timezone, $*TZ, ':local';
+is parse-datetime('6 Jun 06 6:12 am', |y(1988), :local).timezone, $*TZ, ':local with conflicting :now';

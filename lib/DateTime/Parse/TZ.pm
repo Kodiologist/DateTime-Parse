@@ -50,7 +50,8 @@ our sub zones () {
   # CST     =>   +28800,   # China Standard Time
     CVT     =>    -3600,   # Cape Verde Time
     CXT     =>   +25200,   # Christmas Island Time
-    ChST    =>   +36000,   # Chamorro Standard Time
+  # ChST    =>   +36000,   # Chamorro Standard Time
+      # No lowercase for now.
     DFT     =>    +3600,   # AIX specific equivalent of Central European Time
     EAST    =>   -21600,   # Easter Island Standard Time
     EAT     =>   +10800,   # East Africa Time
