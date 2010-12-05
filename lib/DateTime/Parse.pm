@@ -26,9 +26,9 @@ sub in (Str $haystack, Str $needle) {
     $haystack.index($needle).defined
 }
 
-sub bm($b, $x) { $b ?? -$x !! $x }
+sub bm ($b, $x) { $b ?? -$x !! $x }
 
-sub list-cmp(@a, @b) {
+sub list-cmp (@a, @b) {
     for @a Z @b -> $a, $b {
         $a before $b and return -1;
         $a after $b and return 1;
@@ -36,7 +36,7 @@ sub list-cmp(@a, @b) {
     return 0;
 }
 
-sub next-with-dow(Date $date, Int $dow, $backwards?) {
+sub next-with-dow (Date $date, Int $dow, $backwards?) {
 # Finds the nearest date with day of week $dow that's
 #   later than $date     if $backwards is false   and
 #   earlier than $date   if $backwards is true.
@@ -55,7 +55,7 @@ sub consistency-check (%o) {
 # Grammar and actions
 # ----------------------------------------------------------------
 
-grammar DateTime::Parse::G {
+my grammar G {
 # Note that parse-date and parse-datetime downcase all input
 # before trying to parse it with this grammar.
 
@@ -147,7 +147,7 @@ grammar DateTime::Parse::G {
 
 }
 
-class DateTime::Parse::G::Actions {
+my class G::Actions {
     has DateTime $.now;
     has Date $.today;
     has $.timezone;
@@ -175,6 +175,27 @@ class DateTime::Parse::G::Actions {
                   by => { abs $^dt.Instant - $.now.Instant };
     }
 
+    method tbody ($/) { make {
+        hour =>
+            $<noonmid>
+         ?? tt-hour(12, ~$<noonmid>)
+         !! $<timetail>
+         ?? tt-hour($<hour>.Int, ~$<timetail>[0][0])
+         !! +$<hour>,
+        minute => +$<minute>,
+        second => $<sec> && +$<sec>[0]
+    } }
+
+    multi tt-hour (12, 'midnight') {  0 }
+    multi tt-hour (12, 'noon')     { 12 }
+    multi tt-hour (12, 'am')       {  0 }
+    multi tt-hour ($n, 'am')       { $n }
+    multi tt-hour (12, 'pm')       { 12 }
+    multi tt-hour ($n, 'pm')       { 12 + $n }
+
+    method sec ($/) { make $0 + do $<subsec> && $<subsec>[0].ast }
+    method subsec ($/) { make $0 / 10**($0.chars) }
+
     method zone ($/) {
         make ($<offset> || $<zone_abbr>).ast
     }
@@ -188,28 +209,7 @@ class DateTime::Parse::G::Actions {
         make %zones{uc $/} // die "Unknown time zone: {~$/}"
     }
 
-    method tbody ($/) { make {
-        hour =>
-            $<noonmid>
-         ?? tt-hour(12, ~$<noonmid>)
-         !! $<timetail>
-         ?? tt-hour($<hour>.Int, ~$<timetail>[0][0])
-         !! +$<hour>,
-        minute => +$<minute>,
-        second => $<sec> && +$<sec>[0]
-    } }
-
-    multi tt-hour(12, 'midnight') {  0 }
-    multi tt-hour(12, 'noon')     { 12 }
-    multi tt-hour(12, 'am')       {  0 }
-    multi tt-hour($n, 'am')       { $n }
-    multi tt-hour(12, 'pm')       { 12 }
-    multi tt-hour($n, 'pm')       { 12 + $n }
-
-    method sec ($/) { make $0 + do $<subsec> && $<subsec>[0].ast }
-    method subsec ($/) { make $0 / 10**($0.chars) }
-
-    method date($/) {
+    method date ($/) {
         
         if $<special> {
 
@@ -248,12 +248,12 @@ class DateTime::Parse::G::Actions {
 
     }
 
-    method special($/) {
+    method special ($/) {
     # "Today" and the like.
         make $.today + %special-names{~$<specialname>}
     }
 
-    method ymd($/) {
+    method ymd ($/) {
     # "1994/07/03"
         my $year = + do $<yyyy> || $<y>;
         my ($month, $day) = $<an>
@@ -277,7 +277,7 @@ class DateTime::Parse::G::Actions {
         make Date.new: $year, $month, $day;
     }
 
-    method md($/) {
+    method md ($/) {
     # "5th December"
         make $<an>
           ?? $.mdy
@@ -286,9 +286,9 @@ class DateTime::Parse::G::Actions {
           !! (($<m> || $<mname>).ast, ($<d> || $<dth>)[0])
     }
 
-    method m($/) { make $<mname> ?? $<mname>.ast !! ~$/ }
+    method m ($/) { make $<mname> ?? $<mname>.ast !! ~$/ }
 
-    method mname($/) { make %months{~$<mon3>} }
+    method mname ($/) { make %months{~$<mon3>} }
 
 }
 
@@ -296,19 +296,19 @@ class DateTime::Parse::G::Actions {
 # Exported functions
 # ----------------------------------------------------------------
 
-our sub parse-date(Str $s, *%_ is copy) is export {
+our sub parse-date (Str $s, *%_ is copy) is export {
     %_.exists('now') and die ':now not permitted; use :today instead';
     consistency-check %_;
     %_<timezone> //= %_<utc> ?? 0 !! $*TZ;
     %_<today> //= DateTime.now.in-timezone(%_<timezone>).Date;
-    my $actions = DateTime::Parse::G::Actions.new: |%_;
+    my $actions = G::Actions.new: |%_;
       # $actions.now is left undefined; we don't need it.
-    my $match = DateTime::Parse::G.parse(lc($s), :rule<date_only>, :actions($actions))
+    my $match = G.parse(lc($s), :rule<date_only>, :$actions)
         or die "No parse: $s";
     $match<date>.ast;
 }
 
-our sub parse-datetime(Str $s, *%_ is copy) is export {
+our sub parse-datetime (Str $s, *%_ is copy) is export {
     %_.exists('today') and die ':today not permitted; use :now instead';
     consistency-check %_;
     my $requested-tz = %_<timezone> // do
@@ -320,8 +320,8 @@ our sub parse-datetime(Str $s, *%_ is copy) is export {
      !!              $*TZ;
     (%_<now> //= DateTime.now) .= in-timezone: %_<timezone>;
     %_<today> = %_<now>.Date;
-    my $actions = DateTime::Parse::G::Actions.new: |%_;
-    my $match = DateTime::Parse::G.parse(lc($s), :actions($actions))
+    my $actions = G::Actions.new: |%_;
+    my $match = G.parse(lc($s), :$actions)
         or die "No parse: $s";
     my $dt = $match<datetime>.ast;
     $requested-tz.defined ?? $dt.in-timezone($requested-tz) !! $dt

@@ -18,7 +18,7 @@ for False, True -> $date-first {
         $date-first ?? "5 Mar 2008 $^s" !! "$^s 11 Aug 1999",
         :utc };
 
-    sub test($got, $should-be, $desc, $next-day = False, :$subsecond) {
+    sub test ($got, $should-be, $desc, $next-day = False, :$subsecond) {
         is $got,
             $subsecond
              ?? $should-be
@@ -101,7 +101,7 @@ is f('Friday noon', |y(1988)), '1988-01-08T12:00:00Z', 'Dow "noon"';
 # A time without a date
 # ------------------------------------------------------------
 
-sub with-time($hour, $minute, $second, $s, *%_) {
+sub with-time ($hour, $minute, $second, $s, *%_) {
     parse-datetime $s, |%_, now => DateTime.new: 
         year => 1983, month => 7, day => 7,
         :$hour, :$minute, :$second
@@ -156,7 +156,7 @@ is f('15:38:07.2'),     '1983-07-07T15:38:07Z', 'Bare time mapping to :now (unne
 is f('5:06 PM', 2*60*60 + 3*60), '2007-03-11T17:06:00+0203', 'Absolute with :timezone (+)';
 is f('2:13:14', -(12*60*60 + 6*60)), '2007-03-11T02:13:14-1206', 'Absolute with :timezone (-)';
 
-sub nyc2007-tz($dt, $to-utc) {
+sub nyc2007-tz ($dt, $to-utc) {
     my $t = ($dt.month, $dt.day, $dt.hour);
     my $critical-hour = $to-utc ?? 2 !! 7;
     my $dst =
