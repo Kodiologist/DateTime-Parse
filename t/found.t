@@ -4,7 +4,7 @@ use DateTime::Parse;
 
 # Here we try parsing some real timestamps I found on the Web.
 
-plan 15;
+plan 17;
 
 my $d = DateTime.new: day => 5, month => 3, year => 2008;
 
@@ -28,6 +28,9 @@ is f('Sat Nov 13 13:32:45 -0800 2010'), '2010-11-13T13:32:45-0800', 'Dow Mon dd 
 is f('Thu, Jun 10, 2010 at 11:28:40AM +0300'), '2010-06-10T11:28:40+0300', 'Dow, Mon dd, yyyy "at" hh:mm:ss"AM" +hhmm';
 is f('12:29, 3 November 2010 (UTC)'), '2010-11-03T12:29:00Z', 'hh:mm, mm Monthname yyyy "(UTC)"';
 is f('Fri 3 Dec 2010 @ 12:54:03 PM (EST)'), '2010-12-03T12:54:03-0500', 'Dow dd Mon yyyy @ hh:mm:ss "(EST)"';
+
+is f('2010-11-03T12:29:00Z'), '2010-11-03T12:29:00Z', 'yyy-mm-dd"T"hh:mm:ss"Z"';
+is f('2010-12-03T12:54:03-0500'), '2010-12-03T12:54:03-0500', 'yyy-mm-dd"T"hh:mm:ss-TZ';
 
 # ------------------------------------------------------------
 

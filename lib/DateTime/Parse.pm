@@ -71,7 +71,7 @@ my grammar G {
 
     regex date_only { ^ <date> $ }
 
-    token time { <tbody> <zone>? }
+    token time { t? <tbody> <zone>? }
 
     token tbody {
         <noonmid>                                     ||
@@ -97,7 +97,7 @@ my grammar G {
           # The trailing <.sep> is for closing parentheses.
     }
     token offset { 'utc'? ('+' || '-' || '−') <hour> [':'? <minute>]? }
-    token zone_abbr { (<alpha> ** 2..5) <?{%zones.exists: uc $0}> }
+    token zone_abbr { (<alpha> ** 1..5) <?{%zones.exists: uc $0}> }
 
     token date {
         <special>                                             ||
@@ -215,9 +215,7 @@ my class G::Actions {
             60 * 60 * $<hour>, (60 * $<minute>[0] if $<minute>)
     }
 
-    method zone_abbr ($/) {
-        make %zones{uc $/} // die "Unknown time zone: {~$/}"
-    }
+    method zone_abbr ($/) { make %zones{uc $/} }
 
     method date ($/) {
         

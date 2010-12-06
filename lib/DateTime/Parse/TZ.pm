@@ -133,5 +133,6 @@ our sub zones () {
     WEST    =>    +3600,   # Western European Summer Time
     WET     =>       +0,   # Western European Time
     YAKT    =>   +32400,   # Yakutsk Time
-    YEKT    =>   +18000;   # Yekaterinburg Time
+    YEKT    =>   +18000,   # Yekaterinburg Time
+    Z       =>       +0,
 }
