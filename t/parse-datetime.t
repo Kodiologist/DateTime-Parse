@@ -2,7 +2,7 @@ use v6;
 use Test;
 use DateTime::Parse;
 
-plan 123;
+plan 124;
 
 sub y ($year) { { now => DateTime.new(:$year) } }
 
@@ -166,6 +166,8 @@ is f('03:38:07.1999'),  '1983-07-08T03:38:07Z', 'Bare time barely future (unnece
 is f('03:38:07.2001'),  '1983-07-08T03:38:07Z', 'Bare time barely past but for :future';
 is f('03:38:07.2'),     '1983-07-08T03:38:07Z', 'Bare time barely future (by preference, unnecessary :future)';
 is f('15:38:07.2'),     '1983-07-07T15:38:07Z', 'Bare time mapping to :now (unnecessary :future)';
+
+is parse-datetime('now', now => DateTime.new('1998-05-09T14:46:07')), '1998-05-09T14:46:07Z', '"now"';
 
 # ------------------------------------------------------------
 # :timezone

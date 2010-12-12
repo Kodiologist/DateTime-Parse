@@ -62,6 +62,7 @@ my grammar G {
     token TOP { ^ <datetime> $ }
 
     regex datetime {
+        now                                 ||
         <date> <.sep> <time> <.sep> <yyyy>? ||
           # The <yyyy> is in case the time is after the month and
           # day but before the year (yuck). When it exists, we
@@ -164,6 +165,7 @@ my class G::Actions {
     has Bool $.future;
 
     method datetime ($/) {
+        $<time> or return make $.now;
         my $timezone =
             $<zone>
          ?? $<zone>[0].ast
