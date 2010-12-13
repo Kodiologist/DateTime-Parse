@@ -1,0 +1,220 @@
+=head1 NAME
+
+DateTime::Parse - Parse dates and times in arbitrary formats
+
+=head1 SYNOPSIS
+
+  use v6;
+  use DateTime::Parse;
+
+  # These are all equivalent to Date.new(1994, 12, 6):
+
+  parse-date '6th December, 1994';
+  parse-date '6 December, 1994';
+  parse-date '6/12/1994';
+  parse-date '12/6/1994', :mdy;
+  parse-date '19941206';
+  parse-date 'Dec 6 94', yy-center => 2005;
+  parse-date 'tomorrow', today => Date.new(1994, 12, 5);
+  parse-date 'Tuesday', today => Date.new(1994, 12, 4);
+  parse-date 'Tuesday', today => Date.new(1994, 12, 8), :past;
+  parse-date 'Tuesday after next', today => Date.new(1994, 11, 25);
+  parse-date 'Dec 6', today => Date.new(1994, 10, 1);
+  parse-date 'Dec 6', today => Date.new(1993, 12, 8), :future;
+
+  # These are all equivalent to DateTime.new('1994-12-06T15:00:00'):
+
+  parse-datetime '6th December, 1994 at 15:00', :utc;
+  parse-datetime '3pm 6th December 1994', :utc;
+  parse-datetime '15:00:00.000 UTC on 1994 Dec 6';
+  parse-datetime('Tue 6 Dec 1994 @ 10:00:00 AM (EST)').utc;
+  parse-datetime '15:00', now => DateTime.new('1994-12-06T12:00:00');
+  parse-datetime '15:00', now => DateTime.new('1994-12-06T18:00:00');
+  parse-datetime '15:00', now => DateTime.new('1994-12-07T12:00:00'), :past;
+
+  # And this is equivalent to DateTime.new('1994-12-06T12:00:00'):
+
+  parse-datetime 'noon tomorrow', now => DateTime.new('1994-12-05T04:33:11');
+
+  # See the test suite for many more examples.
+
+=head1 DESCRIPTION
+
+DateTime::Parse is a Perl 6 module to parse arbitrary strings describing dates and times. Thus it permits users to specify dates or times in whatever way is most convenient for them. You can also use DateTime::Parse for machine-generated timestamps, and thus spare yourself the trouble of finding or writing the appropriate specialized parser, but you may find it too slow or unpredictable.
+
+Using DateTime::Parse imports two functions, C<&parse-date> and C<&parse-datetime>, which produce C<Date>s and C<DateTime>s, respectively. Each expects a string to parse as a positional argument and permits a number of options as named arguments. The two functions are closely related, so I'll describe them together.
+
+=head1 OPTIONS
+
+=head2 C<:today>, C<:now>
+
+These arguments specify the C<Date> (in the case of C<:today>, which is accepted by C<&parse-date>) or C<DateTime> (in the case of C<:now>, which is accepted by C<&parse-datetime>) to be used for incompletely or relatively specified dates and times like "December 6", "yesterday", and "midnight". The default is the present, as modified by any C<:timezone> argument.
+
+=head2 C<:timezone>
+
+A time zone of the same kind accepted by C<DateTime>'s constructors. The default is the time zone of C<:now>. (So if you provide neither C<:now> nor C<:timezone>, the latter will end up as C<$*TZ>.) It influences how C<&parse-datetime> interprets input. It can be overridden by a time-zone specification in the input itself, such as "MST" or "+0330", but in that case C<&parse-datetime> will courteously convert the object it produces to the time zone you requested. So if you ask for UTC, you'll get UTC, although the input may specify a local time. Without an explicit C<:timezone>, any time zone specified in the input will be returned in the output.
+
+C<&parse-date> actually does accept C<:timezone>, although all the choice of time zone does is influence the default value of C<:now>. (Why did I even bother implementing this behavior? The world may never know.) 
+
+=head2 C<:utc>, C<:local>
+
+Boolean flags that serve as shorthand for C<< timezone => 0 >> and C<< timezone => $*TZ >>.
+
+=head2 C<:yy-center>
+
+A year used to interpret two-digit years. Two-digit years are assumed to fall in a century-wide interval centered on C<:yy-center>. So, for example, if you always want to interpret two-digit years as being in the twentieth century, you should specify C<< yy-center => 1950 >>. The default is the year of C<:today> or C<:now>.
+
+Using DateTime::Parse's ability to handle two-digit years to create year-2100 bugs that your descendants can then fix as highly paid consultants is officially deprecated.
+
+=head2 C<:mdy>
+
+A Boolean flag. The name stands for "month, day, year". With it, "12/6/1994" will be interpreted as 6 December 1994. Without it, the day of the month is generally expected to I<precede> the month, in accordance with international agreement. There are two cases in which the value of C<:mdy> is ignored:
+
+=over
+
+=item 1
+
+If the month is given as a name rather than a number, there is no ambiguity, and hence either order is permissible.
+
+=item 2
+
+If the month is given as a number but the year comes before both the month and the day of the month, DateTime::Parse will always expect the month first. Thus, something like "2007-06-25" will always work. Note that a year that comes first must have all four of its digits.
+
+=back
+
+It's wise to specify C<:mdy> if you know your input is of American origin.
+
+=head2 C<:past>, C<:future>
+
+These Boolean flags, which are mutually exclusive but may both be omitted, indicate a bias to use when interpreting ambiguous inputs. With neither, DateTime::Parse will, for example, choose whether to interpret "Dec 6" as the December 6th before or the December 6th after C<:today> or C<:now> according to which is closer.
+
+  parse-date 'Dec 6', today => Date.new(2003, 11, 7); # 6 Dec 2003
+  parse-date 'Dec 6', today => Date.new(2003,  3, 1); # 6 Dec 2002
+
+C<:past> indicates a preference for the earlier of the two choices, regardless of distance from the present, whereas C<:future> indicates a preference for the later.
+
+  parse-date 'Dec 6', today => Date.new(2003, 11, 7), :past;   # 6 Dec 2002
+  parse-date 'Dec 6', today => Date.new(2003,  3, 1), :past;   # 6 Dec 2002
+  parse-date 'Dec 6', today => Date.new(2003, 11, 7), :future; # 6 Dec 2003
+  parse-date 'Dec 6', today => Date.new(2003,  3, 1), :future; # 6 Dec 2003
+
+Actually, the names "past" and "future" are misleading. They don't favor the past or future over the present—that is, they request non-strict inequalities—so you can think of C<:past> as meaning "not future" and C<:future> as meaning "not past". When it's December 6th, C<&parse-date> will interpret "Dec 6" as referring to today regardless of C<:past> or C<:future>.
+
+=head1 CAVEATS
+
+One man's dwim is another man's unpleasant surprise, and DateTime::Parse is intended to be as dwimmy as possible, so here are some potential unpleasant surprises.
+
+=over
+
+=item *
+
+The parsing functions won't tolerate anything they can't parse, so neither "Saturday night's alright for fighting" nor "ETA: 12:34" will be recognized.
+
+=item *
+
+C<&parse-datetime> won't accept dates without a time of day.
+
+=item *
+
+Without either of "AM" or "PM", C<&parse-datetime> will interpret hours less than 12 as AM.
+
+=item *
+
+C<:past> and C<:future> apply only to ambiguous input:
+
+  parse-date "2004-01-01", today => Date.new(2000, 1, 1), :past;
+    # Returns Date.new(2004, 1, 1) without complaining.
+
+=item *
+
+Bare days of the week are an exception to the rule that when both C<:past> and C<:future> are false DateTime::Parse will pick the closest choice. Specifically, without an explicit C<:past> or input like "last Thursday", days of the week are always interpreted to refer to the future, so on Tuesdays, "Monday" means the day six days in the future, not yesterday. In other words, C<:future> is assumed. Relatedly, a bare day of the week is never interpreted as today, so in this case C<:past> and C<:future> are strict.
+
+=item *
+
+"Next Monday" means the soonest Monday after today, not the Monday after that.
+
+=item *
+
+There are some combinations of C<:now> or C<:today>, C<:yy>-center, and C<:past> or C<:future> that make certain two-digit years impossible to interpret, in which case the parsing function in question will die with some informative last words.
+
+=item *
+
+Time-zone names like "EST" are interpreted as static offsets, which isn't technically correct if the time zone in question uses Daylight Saving Time. (I may change this behavior once a real time-zone module exists.) Thus, the produced C<DateTime> will specify the correct moment in time, but
+
+  parse-datetime("March 1, 2009, noon EST").clone(day => 10).utc
+
+won't do what you might expect. So don't do that.
+
+=item *
+
+At least for the time being, languages other than English aren't supported, and nor is input of any of the following forms:
+
+=over
+
+=item *
+
+"two PM"
+
+=item *
+
+"3-o'-clock"
+
+=item *
+
+"half past 4"
+
+=item *
+
+"teatime"
+
+=item *
+
+"sunrise"
+
+=item *
+
+"2 hours ago"
+
+=item *
+
+"the 10th"
+
+=item *
+
+"Wednesday the 10th"
+
+=item *
+
+"the day after tomorrow"
+
+=item *
+
+"now + 1 week"
+
+=item *
+
+"Halloween"
+
+=item *
+
+"Officer Shrift's birthday"
+
+=back
+
+=back
+
+=head1 AUTHOR
+
+Kodi Arfer (L<http://arfer.net>)
+
+DateTime::Parse is heavily inspired by Time::ParseDate, a Perl 5 module by David Muir Sharnoff.
+
+=head1 LICENSE
+
+DateTime::Parse is copyright 2010 Kodi Arfer.
+
+DateTime::Parse is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+
+DateTime::Parse is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with DateTime::Parse (see the file LICENSE). If not, see L<http://www.gnu.org/licenses/>.
