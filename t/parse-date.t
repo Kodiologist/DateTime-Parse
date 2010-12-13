@@ -2,7 +2,7 @@ use v6;
 use Test;
 use DateTime::Parse;
 
-plan 134;
+plan 136;
 
 multi sub p ($s, *%_) { ~ parse-date $s, |%_ }
 
@@ -195,10 +195,12 @@ is t('Wed', :past),   '1997-06-25', 'Dow (of today, :past)';
 is t('next Sat'),          '1997-07-05', '"next" Dow (unnecessary)';
 is t('next Sat', :future), '1997-07-05', '"next" Dow (unnecessary :future)';
 is t('next Sat', :past),   '1997-07-05', '"next" Dow (overriding :past)';
+is t('next Wed'),          '1997-07-09', '"next" Dow (same day of week as today)';
 
 is t('last Sat'),          '1997-06-28', '"last" Dow';
 is t('last Sat', :past),   '1997-06-28', '"last" Dow (unnecessary :past)';
 is t('last Sat', :future), '1997-06-28', '"last" Dow (overriding :future)';
+is t('last Wed'),          '1997-06-25', '"last" Dow (same day of week as today)';
 
 is t('Sat after next'),    '1997-07-12', 'Dow "after next" (1)';
 is t('Tue after next'),    '1997-07-15', 'Dow "after next" (2)';
