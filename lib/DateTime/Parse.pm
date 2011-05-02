@@ -82,9 +82,9 @@ my grammar G {
     token time { t? <tbody> <zone>? }
 
     token tbody {
-        <noonmid>                                     ||
-        <hour> <timetail>                             ||
-        <hour> ':' <minute> [':' <sec>]? <timetail>?
+        <noonmid>                                      ||
+        <hour> <timetail>                              ||
+        <hour> ':'? <minute> [':'? <sec>]? <timetail>?
     }
 
     token hour { \d\d? }
