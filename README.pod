@@ -135,7 +135,7 @@ Bare days of the week are an exception to the rule that when both C<:past> and C
 
 =item *
 
-There are some combinations of C<:now> or C<:today>, C<:yy>-center, and C<:past> or C<:future> that make certain two-digit years impossible to interpret, in which case the parsing function in question will die with some informative last words.
+There are some combinations of C<:now> or C<:today>, C<:yy-center>, and C<:past> or C<:future> that make certain two-digit years impossible to interpret, in which case the parsing function in question will die with some informative last words.
 
 =item *
 
