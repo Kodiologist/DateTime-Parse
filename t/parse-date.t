@@ -41,12 +41,12 @@ is t('12-6-94', :mdy),             '1994-12-06', 'mm-dd-yy';
 is t('6 12 94', :past),                   '1994-12-06', 'dd mm yy (unnecessary :past)';
 is p('6 12 94', 1993, 2, 2, :past),       '1894-12-06', 'dd mm yy (:past with different :today)';
 is t('6 12 94', :past, :yy-center(1763)), '1794-12-06', 'dd mm yy (:past with :yy-center)';
-dies_ok t('6 12 94', :past, :yy-center(2050)), 'dd mm yy (:past with incompatible :yy-center)';
+dies_ok { t '6 12 94', :past, :yy-center(2050) }, 'dd mm yy (:past with incompatible :yy-center)';
 
 is t('6 12 94', :future),                   '2094-12-06', 'dd mm yy (:future)';
 is p('6 12 94', 1942, 7, 7, :future),       '1994-12-06', 'dd mm yy (:future with different :today)';
 is t('6 12 94', :future, :yy-center(2200)), '2194-12-06', 'dd mm yy (:future with :yy-center)';
-dies_ok t('6 12 94', :future, :yy-center(1950)), 'dd mm yy (:future with incompatible :yy-center)';
+dies_ok { t '6 12 94', :future, :yy-center(1950) }, 'dd mm yy (:future with incompatible :yy-center)';
 
 is p('06 Dec 1994'),         '1994-12-06', 'dd Mon yyyy';
 is p('6Dec 1994'),           '1994-12-06', 'ddMon yyyy';

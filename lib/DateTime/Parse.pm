@@ -51,6 +51,13 @@ sub consistency-check (%o) {
         and die "You can't specify both :past and :future";
 }
 
+sub set-yy-center (%o is rw) {
+    %o<yy-center> //= %o<today>.year + do
+         %o<past>   ?? -50
+      !! %o<future> ?? +50
+      !!               0;
+}
+
 # ----------------------------------------------------------------
 # Grammar and actions
 # ----------------------------------------------------------------
@@ -158,7 +165,7 @@ my class G::Actions {
     has DateTime $.now;
     has Date $.today;
     has $.timezone;
-    has Int $.yy-center = $.today.year;
+    has Int $.yy-center;
       # The year used to resolve two-digit year specifications.
     has Bool $.mdy;
     has Bool $.past;
@@ -272,6 +279,7 @@ my class G::Actions {
         # Handle two-digit years.
         if chars($year) == 1|2 {
             my @ys =
+                grep { abs($.yy-center - $^y) <= 50 },
                 map { $^n - $^n % 100 + $year },
                 $.yy-center «+« (-100, 0, 100);
             my &f = { ($^n, $.today.month, $.today.day) };
@@ -281,7 +289,7 @@ my class G::Actions {
                 { list-cmp(f($.today.year), f($^n)) != -1 };
             $.future and @ys .= grep:
                 { list-cmp(f($.today.year), f($^n)) != 1 };
-            @ys or die "No possible century for two-digit year $year with {$.past ?? ':past' !! ':future'}, :now($.now), and :yy-center($.yy-center)";
+            @ys or die "No possible century for two-digit year $year with {$.past ?? ':past' !! ':future'}, :today($.today), and :yy-center($.yy-center)";
             $year = min @ys, by => { abs $^n - $.yy-center };
         }
         make Date.new: $year, $month, $day;
@@ -311,6 +319,7 @@ our sub parse-date (Str $s, *%_ is copy) is export {
     consistency-check %_;
     %_<timezone> //= %_<utc> ?? 0 !! $*TZ;
     %_<today> //= DateTime.now.in-timezone(%_<timezone>).Date;
+    set-yy-center %_;
     my $actions = G::Actions.new: |%_;
       # $actions.now is left undefined; we don't need it.
     my $match = G.parse(lc($s), :rule<date_only>, :$actions)
@@ -330,6 +339,7 @@ our sub parse-datetime (Str $s, *%_ is copy) is export {
      !!              $*TZ;
     (%_<now> //= DateTime.now) .= in-timezone: %_<timezone>;
     %_<today> = %_<now>.Date;
+    set-yy-center %_;
     my $actions = G::Actions.new: |%_;
     my $match = G.parse(lc($s), :$actions)
         or die "No parse: $s";
